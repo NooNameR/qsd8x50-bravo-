@@ -32,6 +32,10 @@ ifndef CONFIG_MSM_SMP
 obj-$(CONFIG_ARCH_MSM_SCORPION) += msm_fault_handlers.o
 endif
 
+ifndef CONFIG_ARCH_MSM8X60
+obj-y += irq.o
+endif
+
 obj-$(CONFIG_MSM_VIC) += irq-vic.o
 
 ifdef CONFIG_ARCH_QSD8X50
