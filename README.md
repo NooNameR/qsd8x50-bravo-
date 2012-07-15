@@ -9,7 +9,7 @@ just a list of things I noticed or is not important to fix now.
 
 now trouble in fs/yaffs2 interface not see it, and i don't know why...
 
-Current kmsg output: http://pastebin.com/aXZevNcw
+Current kmsg output: http://pastebin.com/kVgHiSMh
 
 If you stumple over this and are interested to help then feel free to contact me.
 

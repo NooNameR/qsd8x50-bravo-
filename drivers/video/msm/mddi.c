@@ -109,7 +109,7 @@ static struct platform_driver mddi_driver = {
 		   },
 };
 
-extern int int_mddi_pri_flag;
+extern int int_mddi_pri_flag=0;
 DEFINE_MUTEX(pmdh_clk_lock);
 
 int pmdh_clk_func(int value)
@@ -141,7 +141,7 @@ static void pmdh_clk_disable()
 		return;
 	}
 
-	if (mddi_host_timer.function) {
+	/*if (mddi_host_timer.function) {
 		mutex_lock(&mddi_timer_lock);
 		mddi_timer_shutdown_flag = 1;
 		mutex_unlock(&mddi_timer_lock);
@@ -149,7 +149,7 @@ static void pmdh_clk_disable()
 		mutex_lock(&mddi_timer_lock);
 		mddi_timer_shutdown_flag = 0;
 		mutex_unlock(&mddi_timer_lock);
-	}
+	}*/
 	if (int_mddi_pri_flag && irq_enabled) {
 		disable_irq(INT_MDDI_PRI);
 		irq_enabled = 0;
@@ -184,8 +184,8 @@ static void pmdh_clk_enable()
 		irq_enabled = 1;
 	}
 
-	if (mddi_host_timer.function)
-		mddi_host_timer_service(0);
+	/*if (mddi_host_timer.function)
+		//mddi_host_timer_service(0);*/
 
 	mutex_unlock(&pmdh_clk_lock);
 }
@@ -207,7 +207,7 @@ static int mddi_off(struct platform_device *pdev)
 	}
 
 	pmdh_clk_enable();
-	ret = panel_next_off(pdev);
+//	ret = panel_next_off(pdev);
 	pmdh_clk_disable();
 
 	if (mddi_pdata && mddi_pdata->mddi_power_save)
@@ -239,9 +239,9 @@ static int mddi_on(struct platform_device *pdev)
 
 	pmdh_clk_enable();
 #ifdef ENABLE_FWD_LINK_SKEW_CALIBRATION
-	if (mddi_client_type < 2) {
-		/* For skew calibration, clock should be less than 50MHz */
-		clk_rate = clk_round_rate(mddi_clk, 49000000);
+	/*if (mddi_client_type < 2) {
+		/* For skew calibration, clock should be less than 50MHz 
+		clk_rate = clk_round_rate(mddi_clk, 49000000);*/
 		if (!clk_set_rate(mddi_clk, clk_rate)) {
 			stat_reg = mddi_host_reg_in(STAT);
 			printk(KERN_DEBUG "\n stat_reg = 0x%x", stat_reg);
@@ -281,7 +281,7 @@ static int mddi_on(struct platform_device *pdev)
 	if (mfd->ebi1_clk)
 		clk_enable(mfd->ebi1_clk);
 #endif
-	ret = panel_next_on(pdev);
+//	ret = panel_next_on(pdev);
 
 	return ret;
 }
@@ -380,12 +380,12 @@ static int mddi_probe(struct platform_device *pdev)
 		printk(KERN_ERR "%s: clk_set_max_rate failed\n", __func__);
 	mfd->panel_info.clk_rate = mfd->panel_info.clk_min;
 
-	if (!mddi_client_type)
+	/*if (!mddi_client_type)
 		mddi_client_type = mfd->panel_info.lcd.rev;
 	else if (!mfd->panel_info.lcd.rev)
 		printk(KERN_ERR
 		"%s: mddi client is trying to revert back to type 1	!!!\n",
-		__func__);
+		__func__);*/
 
 	/*
 	 * set driver data
@@ -524,7 +524,7 @@ static void mddi_early_resume(struct early_suspend *h)
 static int mddi_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
-	if (mddi_host_timer.function) {
+	/*if (mddi_host_timer.function) {
 		mutex_lock(&mddi_timer_lock);
 		mddi_timer_shutdown_flag = 1;
 		mutex_unlock(&mddi_timer_lock);
@@ -532,7 +532,7 @@ static int mddi_remove(struct platform_device *pdev)
 		mutex_lock(&mddi_timer_lock);
 		mddi_timer_shutdown_flag = 0;
 		mutex_unlock(&mddi_timer_lock);
-	}
+	}*/
 
 	iounmap(msm_pmdh_base);
 
@@ -577,7 +577,7 @@ static int __init mddi_driver_init(void)
 		return ret;
 	}
 
-	mddi_init();
+//	mddi_init();
 
 	return ret;
 }
