@@ -1309,7 +1309,7 @@ static int kgsl_get_phys_file(int fd, unsigned long *start, unsigned long *len,
 	}
 
 	rdev = fbfile->f_dentry->d_inode->i_rdev;
-	info = MAJOR(rdev) == FB_MAJOR ? registered_fb[MINOR(rdev)] : NULL;
+	/*info = MAJOR(rdev) == FB_MAJOR ? registered_fb[MINOR(rdev)] : NULL;
 	if (info) {
 		*start = info->fix.smem_start;
 		*len = info->fix.smem_len;
@@ -1319,7 +1319,7 @@ static int kgsl_get_phys_file(int fd, unsigned long *start, unsigned long *len,
 		KGSL_CORE_ERR("framebuffer minor %d not found\n",
 			      MINOR(rdev));
 		ret = -1;
-	}
+	}*/
 
 	fput(fbfile);
 

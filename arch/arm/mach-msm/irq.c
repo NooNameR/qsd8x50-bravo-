@@ -118,34 +118,34 @@ static struct irq_chip msm_irq_chip = {
 	.irq_set_type  = msm_irq_set_type,
 };
 
-void __init msm_init_irq(void)
+/*void __init msm_init_irq(void)
 {
 	unsigned n;
 
-	/* select level interrupts */
+	/* select level interrupts
 	writel(0, VIC_INT_TYPE0);
 	writel(0, VIC_INT_TYPE1);
 
-	/* select highlevel interrupts */
+	/* select highlevel interrupts
 	writel(0, VIC_INT_POLARITY0);
 	writel(0, VIC_INT_POLARITY1);
 
-	/* select IRQ for all INTs */
+	/* select IRQ for all INTs
 	writel(0, VIC_INT_SELECT0);
 	writel(0, VIC_INT_SELECT1);
 
-	/* disable all INTs */
+	/* disable all INTs 
 	writel(0, VIC_INT_EN0);
 	writel(0, VIC_INT_EN1);
 
-	/* don't use 1136 vic */
+	/* don't use 1136 vic
 	writel(0, VIC_CONFIG);
 
-	/* enable interrupt controller */
+	/* enable interrupt controller
 	writel(1, VIC_INT_MASTEREN);
 
 	for (n = 0; n < NR_MSM_IRQS; n++) {
 		irq_set_chip_and_handler(n, &msm_irq_chip, handle_level_irq);
 		set_irq_flags(n, IRQF_VALID);
 	}
-}
+}*/
