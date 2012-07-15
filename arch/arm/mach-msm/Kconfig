@@ -2244,3 +2244,4 @@ config MSM_DCVS
 config HAVE_ARCH_HAS_CURRENT_TIMER
 	bool
 endif
+
