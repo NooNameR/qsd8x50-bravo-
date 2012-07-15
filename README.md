@@ -7,9 +7,7 @@ In case anyone other than me reads this. There are a lot of things to do. Adding
 all neccessary drivers from older kernels and adapting the interfaces. This is
 just a list of things I noticed or is not important to fix now.
 
-now trouble in fs/yaffs2 interface not see it, and i don't know why...
-
-Current kmsg output: http://pastebin.com/kVgHiSMh
+Current kmsg output: http://pastebin.com/EUXq40HD
 
 If you stumple over this and are interested to help then feel free to contact me.
 
