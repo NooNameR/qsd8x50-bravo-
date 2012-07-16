@@ -20,15 +20,16 @@
 #include <linux/usb/composite.h>
 #include <linux/if_ether.h>
 
-struct android_usb_function {
+/*struct android_usb_function {
 	struct list_head	list;
 	char			*name;
 	int 			(*bind_config)(struct usb_configuration *c);
-};
+};*/
 
 struct android_usb_product {
 	/* Default product ID. */
 	__u16 product_id;
+	__u16 vendor_id;
 
 	/* List of function names associated with this product.
 	 * This is used to compute the USB product ID dynamically
@@ -50,6 +51,15 @@ struct android_usb_platform_data {
 	char *product_name;
 	char *manufacturer_name;
 	char *serial_number;
+
+	int usb_id_pin_gpio;
+	char *fserial_init_string;
+	int (*update_pid_and_serial_num)(uint32_t, const char *);
+
+	unsigned char diag_init:1;
+	unsigned char modem_init:1;
+	unsigned char rmnet_init:1;
+	unsigned char reserved:5;
 
 	/* List of available USB products.
 	 * This is used to compute the USB product ID dynamically
