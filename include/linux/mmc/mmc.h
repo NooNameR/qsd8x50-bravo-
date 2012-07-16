@@ -24,6 +24,8 @@
 #ifndef MMC_MMC_H
 #define MMC_MMC_H
 
+#define EXT_CSD_CMD_SET_ZERO		0
+
 /* Standard MMC commands (4.1)           type  argument     response */
    /* class 1 */
 #define MMC_GO_IDLE_STATE         0   /* bc                          */

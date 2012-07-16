@@ -2,7 +2,7 @@
  *  linux/drivers/mmc/host/msmsdcc.h - QCT MSM7K SDC Controller
  *
  *  Copyright (C) 2008 Google, All Rights Reserved.
- *  Copyright (c) 2009-2012, Code Aurora Forum. All rights reserved.
+ *  Copyright (c) 2009-2011, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -169,7 +169,6 @@
 
 #define MMCIMASK1		0x040
 #define MMCIFIFOCNT		0x044
-#define MCI_VERSION		0x050
 #define MCICCSTIMER		0x058
 #define MCI_DLL_CONFIG		0x060
 #define MCI_DLL_EN		(1 << 16)
@@ -210,13 +209,13 @@
 
 #define NR_SG		128
 
-#define MSM_MMC_IDLE_TIMEOUT	5000 /* msecs */
-
+#define MSM_MMC_IDLE_TIMEOUT	250 /* msecs */
+#define MSM_EMMC_IDLE_TIMEOUT	20 /* msecs */
 /*
  * Set the request timeout to 10secs to allow
  * bad cards/controller to respond.
  */
-#define MSM_MMC_REQ_TIMEOUT	10000 /* msecs */
+#define MSM_MMC_REQ_TIMEOUT	5000 /* msecs */
 #define MSM_MMC_DISABLE_TIMEOUT        200 /* msecs */
 
 /*
@@ -281,10 +280,9 @@ struct msmsdcc_dma_data {
 };
 
 struct msmsdcc_pio_data {
-	struct sg_mapping_iter		sg_miter;
-	char				bounce_buf[4];
-	/* valid bytes in bounce_buf */
-	int				bounce_buf_len;
+	struct scatterlist	*sg;
+	unsigned int		sg_len;
+	unsigned int		sg_off;
 };
 
 struct msmsdcc_curr_req {
@@ -354,9 +352,11 @@ struct msmsdcc_host {
 
 	u32			pwr;
 	struct mmc_platform_data *plat;
-	u32			sdcc_version;
 
 	unsigned int		oldstat;
+#ifdef CONFIG_WIMAX
+    unsigned long       irq_time;
+#endif
 
 	struct msmsdcc_dma_data	dma;
 	struct msmsdcc_sps_data sps;
@@ -384,42 +384,57 @@ struct msmsdcc_host {
 	unsigned int	dummy_52_needed;
 	unsigned int	dummy_52_sent;
 
-	bool		is_resumed;
+	unsigned int	sdio_irq_disabled;
 	struct wake_lock	sdio_wlock;
 	struct wake_lock	sdio_suspend_wlock;
+	unsigned int    sdcc_suspending;
+
+	unsigned int sdcc_irq_disabled;
 	struct timer_list req_tout_timer;
 	unsigned long reg_write_delay;
 	bool io_pad_pwr_switch;
-	bool tuning_in_progress;
+	bool cmd19_tuning_in_progress;
 	bool tuning_needed;
 	bool sdio_gpio_lpm;
 	bool irq_wake_enabled;
 	struct pm_qos_request_list pm_qos_req_dma;
-	bool sdcc_suspending;
-	bool sdcc_irq_disabled;
-	bool sdcc_suspended;
-	bool sdio_wakeupirq_disabled;
+	unsigned int	use_pio;
+
+	unsigned int	irq_status[5];
+	unsigned int	irq_counter;
 };
 
 int msmsdcc_set_pwrsave(struct mmc_host *mmc, int pwrsave);
-int msmsdcc_sdio_al_lpm(struct mmc_host *mmc, bool enable);
+int msmsdcc_sdio_al_lpm(struct mmc_host *mmc, bool enable, int wlock_timeout);
 
 #ifdef CONFIG_MSM_SDIO_AL
 
 static inline int msmsdcc_lpm_enable(struct mmc_host *mmc)
 {
-	return msmsdcc_sdio_al_lpm(mmc, true);
+	return msmsdcc_sdio_al_lpm(mmc, true, 1);
 }
 
 static inline int msmsdcc_lpm_disable(struct mmc_host *mmc)
 {
-	struct msmsdcc_host *host = mmc_priv(mmc);
-	int ret;
-
-	ret = msmsdcc_sdio_al_lpm(mmc, false);
-	wake_unlock(&host->sdio_wlock);
-	return ret;
+	return msmsdcc_sdio_al_lpm(mmc, false, 1);
 }
 #endif
 
+#ifdef CONFIG_WIMAX
+extern int mmc_wimax_get_status(void);
+extern void mmc_wimax_enable_host_wakeup(int on);
+extern int mmc_wimax_get_irq_log(void);
+#endif
+
+#ifdef CONFIG_MACH_PRIMODD
+//HTC_WIFI_START
+int primodd_wifi_power(int on); 
+//HTC_WIFI_END
+#endif
+#ifdef CONFIG_MACH_RUBY
+extern int ruby_wifi_power(int on);
+#endif
+#if defined CONFIG_MACH_BLISS || defined CONFIG_MACH_BLISSC || defined CONFIG_MACH_PRIMODS
+extern int ti_wifi_power(int on);
+#endif
 #endif

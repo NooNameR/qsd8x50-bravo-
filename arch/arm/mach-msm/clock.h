@@ -1,7 +1,7 @@
 /* arch/arm/mach-msm/clock.h
  *
  * Copyright (C) 2007 Google, Inc.
- * Copyright (c) 2007-2012, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2007-2011, Code Aurora Forum. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -21,21 +21,22 @@
 #include <linux/list.h>
 #include <linux/clkdev.h>
 #include <linux/spinlock.h>
-#include <linux/mutex.h>
 
 #include <mach/clk.h>
+
+/* Maximum number of clocks supported. */
+#define MAX_NR_CLKS	300
 
 #define CLKFLAG_INVERT			0x00000001
 #define CLKFLAG_NOINVERT		0x00000002
 #define CLKFLAG_NONEST			0x00000004
 #define CLKFLAG_NORESET			0x00000008
 #define CLKFLAG_HANDOFF_RATE		0x00000010
-#define CLKFLAG_HWCG			0x00000020
-#define CLKFLAG_RETAIN			0x00000040
-#define CLKFLAG_NORETAIN		0x00000080
 #define CLKFLAG_SKIP_AUTO_OFF		0x00000200
+#define CLKFLAG_HWCG			0x00000020
 #define CLKFLAG_MIN			0x00000400
 #define CLKFLAG_MAX			0x00000800
+#define CLKFLAG_IGNORE		0x10000000	/*added by htc for clock debugging*/
 
 #define MAX_VDD_LEVELS			4
 
@@ -64,17 +65,16 @@ struct clk_vdd_class {
 	}
 
 struct clk_ops {
-	int (*prepare)(struct clk *clk);
 	int (*enable)(struct clk *clk);
 	void (*disable)(struct clk *clk);
-	void (*unprepare)(struct clk *clk);
 	void (*auto_off)(struct clk *clk);
+	int (*handoff)(struct clk *clk);
 	void (*enable_hwcg)(struct clk *clk);
 	void (*disable_hwcg)(struct clk *clk);
 	int (*in_hwcg_mode)(struct clk *clk);
-	int (*handoff)(struct clk *clk);
 	int (*reset)(struct clk *clk, enum clk_reset_action action);
 	int (*set_rate)(struct clk *clk, unsigned long rate);
+	int (*set_min_rate)(struct clk *clk, unsigned long rate);
 	int (*set_max_rate)(struct clk *clk, unsigned long rate);
 	int (*set_flags)(struct clk *clk, unsigned flags);
 	unsigned long (*get_rate)(struct clk *clk);
@@ -88,14 +88,11 @@ struct clk_ops {
 
 /**
  * struct clk
- * @prepare_count: prepare refcount
- * @prepare_lock: protects clk_prepare()/clk_unprepare() path and @prepare_count
  * @count: enable refcount
  * @lock: protects clk_enable()/clk_disable() path and @count
  * @depends: non-direct parent of clock to enable when this clock is enabled
  * @vdd_class: voltage scaling requirement class
  * @fmax: maximum frequency in Hz supported at each voltage level
- * @warned: true if the clock has warned of incorrect usage, false otherwise
  */
 struct clk {
 	uint32_t flags;
@@ -108,19 +105,22 @@ struct clk {
 
 	struct list_head children;
 	struct list_head siblings;
+	struct list_head enable_list;	/*added by htc for clock debugging*/
 
-	bool warned;
 	unsigned count;
 	spinlock_t lock;
-	unsigned prepare_count;
-	struct mutex prepare_lock;
 };
 
 #define CLK_INIT(name) \
 	.lock = __SPIN_LOCK_UNLOCKED((name).lock), \
-	.prepare_lock = __MUTEX_INITIALIZER((name).prepare_lock), \
 	.children = LIST_HEAD_INIT((name).children), \
 	.siblings = LIST_HEAD_INIT((name).siblings)
+
+/*added by htc for clock debugging*/
+extern struct list_head clk_enable_list;
+extern spinlock_t clk_enable_list_lock;
+extern int is_xo_src(struct clk *);
+extern void clk_ignor_list_add(const char *, const char *);
 
 /**
  * struct clock_init_data - SoC specific clock initialization data
@@ -145,11 +145,10 @@ extern struct clock_init_data msm7x27_clock_init_data;
 extern struct clock_init_data msm7x27a_clock_init_data;
 extern struct clock_init_data msm7x30_clock_init_data;
 extern struct clock_init_data msm8960_clock_init_data;
+extern struct clock_init_data qsd8x50_clock_init_data;
 extern struct clock_init_data msm8960_dummy_clock_init_data;
 extern struct clock_init_data msm8x60_clock_init_data;
-extern struct clock_init_data qsd8x50_clock_init_data;
-extern struct clock_init_data msm8625_dummy_clock_init_data;
-extern struct clock_init_data msm8930_clock_init_data;
+
 
 void msm_clock_init(struct clock_init_data *data);
 int vote_vdd_level(struct clk_vdd_class *vdd_class, int level);

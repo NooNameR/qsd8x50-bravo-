@@ -1,7 +1,7 @@
 /* arch/arm/mach-msm/clock.c
  *
  * Copyright (C) 2007 Google, Inc.
- * Copyright (c) 2007-2012, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2007-2011, Code Aurora Forum. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -127,41 +127,9 @@ static void unvote_rate_vdd(struct clk *clk, unsigned long rate)
 	unvote_vdd_level(clk->vdd_class, level);
 }
 
-int clk_prepare(struct clk *clk)
-{
-	int ret = 0;
-	struct clk *parent;
-	if (!clk)
-		return 0;
-
-	mutex_lock(&clk->prepare_lock);
-	if (clk->prepare_count == 0) {
-		parent = clk_get_parent(clk);
-
-		ret = clk_prepare(parent);
-		if (ret)
-			goto out;
-		ret = clk_prepare(clk->depends);
-		if (ret)
-			goto err_prepare_depends;
-
-		if (clk->ops->prepare)
-			ret = clk->ops->prepare(clk);
-		if (ret)
-			goto err_prepare_clock;
-	}
-	clk->prepare_count++;
-out:
-	mutex_unlock(&clk->prepare_lock);
-	return ret;
-err_prepare_clock:
-	clk_unprepare(clk->depends);
-err_prepare_depends:
-	clk_unprepare(parent);
-	goto out;
-}
-EXPORT_SYMBOL(clk_prepare);
-
+/*added by htc for clock debugging*/
+LIST_HEAD(clk_enable_list);
+DEFINE_SPINLOCK(clk_enable_list_lock);
 /*
  * Standard clock functions defined in include/linux/clk.h
  */
@@ -175,20 +143,16 @@ int clk_enable(struct clk *clk)
 		return 0;
 
 	spin_lock_irqsave(&clk->lock, flags);
-	if (WARN(!clk->warned && !clk->prepare_count,
-				"%s: Don't call enable on unprepared clocks\n",
-				clk->dbg_name))
-		clk->warned = true;
 	if (clk->count == 0) {
 		parent = clk_get_parent(clk);
-
-		ret = clk_enable(parent);
-		if (ret)
-			goto err_enable_parent;
-		ret = clk_enable(clk->depends);
-		if (ret)
-			goto err_enable_depends;
-
+		if (!(clk->flags&CLKFLAG_IGNORE)) {
+			ret = clk_enable(parent);
+			if (ret)
+				goto err_enable_parent;
+			ret = clk_enable(clk->depends);
+			if (ret)
+				goto err_enable_depends;
+		}
 		ret = vote_rate_vdd(clk, clk->rate);
 		if (ret)
 			goto err_vote_vdd;
@@ -196,6 +160,13 @@ int clk_enable(struct clk *clk)
 			ret = clk->ops->enable(clk);
 		if (ret)
 			goto err_enable_clock;
+
+		/*added by htc for clock debugging*/
+		if (!(clk->flags&CLKFLAG_IGNORE)) {
+			spin_lock(&clk_enable_list_lock);
+			list_add(&clk->enable_list, &clk_enable_list);
+			spin_unlock(&clk_enable_list_lock);
+		}
 	} else if (clk->flags & CLKFLAG_HANDOFF_RATE) {
 		/*
 		 * The clock was already enabled by handoff code so there is no
@@ -232,11 +203,6 @@ void clk_disable(struct clk *clk)
 		return;
 
 	spin_lock_irqsave(&clk->lock, flags);
-	if (WARN(!clk->warned && !clk->prepare_count,
-				"%s: Never called prepare or calling disable "
-				"after unprepare\n",
-				clk->dbg_name))
-		clk->warned = true;
 	if (WARN(clk->count == 0, "%s is unbalanced", clk->dbg_name))
 		goto out;
 	if (clk->count == 1) {
@@ -245,45 +211,21 @@ void clk_disable(struct clk *clk)
 		if (clk->ops->disable)
 			clk->ops->disable(clk);
 		unvote_rate_vdd(clk, clk->rate);
-		clk_disable(clk->depends);
-		clk_disable(parent);
+
+		if (!(clk->flags&CLKFLAG_IGNORE)) {	/*added by htc for clock debugging*/
+			clk_disable(clk->depends);
+			clk_disable(parent);
+			/*added by htc for clock debugging*/
+			spin_lock(&clk_enable_list_lock);
+			list_del(&clk->enable_list);
+			spin_unlock(&clk_enable_list_lock);
+		}
 	}
 	clk->count--;
 out:
 	spin_unlock_irqrestore(&clk->lock, flags);
 }
 EXPORT_SYMBOL(clk_disable);
-
-void clk_unprepare(struct clk *clk)
-{
-	if (!clk)
-		return;
-
-	mutex_lock(&clk->prepare_lock);
-	if (!clk->prepare_count) {
-		if (WARN(!clk->warned, "%s is unbalanced (prepare)",
-				clk->dbg_name))
-			clk->warned = true;
-		goto out;
-	}
-	if (clk->prepare_count == 1) {
-		struct clk *parent = clk_get_parent(clk);
-
-		if (WARN(!clk->warned && clk->count,
-			"%s: Don't call unprepare when the clock is enabled\n",
-				clk->dbg_name))
-			clk->warned = true;
-
-		if (clk->ops->unprepare)
-			clk->ops->unprepare(clk);
-		clk_unprepare(clk->depends);
-		clk_unprepare(parent);
-	}
-	clk->prepare_count--;
-out:
-	mutex_unlock(&clk->prepare_lock);
-}
-EXPORT_SYMBOL(clk_unprepare);
 
 int clk_reset(struct clk *clk, enum clk_reset_action action)
 {
@@ -297,18 +239,19 @@ EXPORT_SYMBOL(clk_reset);
 unsigned long clk_get_rate(struct clk *clk)
 {
 	if (!clk->ops->get_rate)
-		return clk->rate;
+		return 0;
 
 	return clk->ops->get_rate(clk);
 }
 EXPORT_SYMBOL(clk_get_rate);
 
-int clk_set_rate(struct clk *clk, unsigned long rate)
+static int _clk_set_rate(struct clk *clk, unsigned long rate,
+			 int (*set_fn)(struct clk *, unsigned long))
 {
 	unsigned long start_rate, flags;
 	int rc;
 
-	if (!clk->ops->set_rate)
+	if (!set_fn)
 		return -ENOSYS;
 
 	spin_lock_irqsave(&clk->lock, flags);
@@ -318,13 +261,13 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 		rc = vote_rate_vdd(clk, rate);
 		if (rc)
 			goto err_vote_vdd;
-		rc = clk->ops->set_rate(clk, rate);
+		rc = set_fn(clk, rate);
 		if (rc)
 			goto err_set_rate;
 		/* Release vdd requirements for starting frequency. */
 		unvote_rate_vdd(clk, start_rate);
 	} else {
-		rc = clk->ops->set_rate(clk, rate);
+		rc = set_fn(clk, rate);
 	}
 
 	if (!rc)
@@ -339,7 +282,6 @@ err_vote_vdd:
 	spin_unlock_irqrestore(&clk->lock, flags);
 	return rc;
 }
-EXPORT_SYMBOL(clk_set_rate);
 
 long clk_round_rate(struct clk *clk, unsigned long rate)
 {
@@ -349,6 +291,31 @@ long clk_round_rate(struct clk *clk, unsigned long rate)
 	return clk->ops->round_rate(clk, rate);
 }
 EXPORT_SYMBOL(clk_round_rate);
+
+int clk_set_rate(struct clk *clk, unsigned long rate)
+{
+	int rc;
+	if (clk->flags & CLKFLAG_MIN)
+		rc = _clk_set_rate(clk, rate, clk->ops->set_min_rate);
+	else
+		rc = _clk_set_rate(clk, rate, clk->ops->set_rate);
+	if (rc)
+		printk(KERN_ERR "[CLK] %s: failed to set clk: %s, rate=%lu, flags=0x%x, rc=%d\n",
+			__func__, clk->dbg_name, rate, clk->flags, rc);
+	return rc;
+}
+EXPORT_SYMBOL(clk_set_rate);
+
+int clk_set_min_rate(struct clk *clk, unsigned long rate)
+{
+	int rc;
+	rc = _clk_set_rate(clk, rate, clk->ops->set_min_rate);
+	if (rc)
+		printk(KERN_ERR "[CLK] %s: failed to set clk: %s, rate=%lu, rc=%d\n",
+			__func__, clk->dbg_name, rate, rc);
+	return rc;
+}
+EXPORT_SYMBOL(clk_set_min_rate);
 
 int clk_set_max_rate(struct clk *clk, unsigned long rate)
 {
@@ -410,7 +377,7 @@ void __init msm_clock_init(struct clock_init_data *data)
 		if (clk->ops->handoff && !(clk->flags & CLKFLAG_HANDOFF_RATE)) {
 			if (clk->ops->handoff(clk)) {
 				clk->flags |= CLKFLAG_HANDOFF_RATE;
-				clk_prepare_enable(clk);
+				clk_enable(clk);
 			}
 		}
 	}
@@ -447,11 +414,11 @@ static int __init clock_late_init(void)
 			}
 			spin_unlock_irqrestore(&clk->lock, flags);
 			/*
-			 * Calling this outside the lock is safe since
+			 * Calling clk_disable() outside the lock is safe since
 			 * it doesn't need to be atomic with the flag change.
 			 */
 			if (handoff)
-				clk_disable_unprepare(clk);
+				clk_disable(clk);
 		}
 	}
 	pr_info("clock_late_init() disabled %d unused clocks\n", count);

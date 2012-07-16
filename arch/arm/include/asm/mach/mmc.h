@@ -124,6 +124,7 @@ struct mmc_platform_data {
 	 * XPC controls the maximum current in the
 	 * default speed mode of SDXC card.
 	 */
+	unsigned int *slot_type;
 	unsigned int xpc_cap;
 	/* Supported UHS-I Modes */
 	unsigned int uhs_caps;
@@ -140,6 +141,7 @@ struct mmc_platform_data {
 	unsigned int msmsdcc_fmid;
 	unsigned int msmsdcc_fmax;
 	bool nonremovable;
+	bool sdcc_v4_sup;
 	bool pclk_src_dfab;
 	int (*cfg_mpm_sdiowakeup)(struct device *, unsigned);
 	unsigned int wpswitch_gpio;
