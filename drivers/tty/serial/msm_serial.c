@@ -1161,6 +1161,12 @@ static struct platform_driver msm_platform_driver = {
 static int __init msm_serial_init(void)
 {
 	int ret;
+		/* Switch Uart Debug by Kernel Flag  */
+	if (KERNEL_FLAG_SERIAL_HSL_ENABLE)
+		msm_serial_enable = 1;
+
+	if (!msm_serial_enable)
+		msm_uart_driver.cons = NULL;
 
 	ret = uart_register_driver(&msm_uart_driver);
 	if (unlikely(ret))
