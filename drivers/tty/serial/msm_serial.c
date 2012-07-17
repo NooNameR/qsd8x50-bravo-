@@ -2,7 +2,7 @@
  * drivers/serial/msm_serial.c - driver for msm7k serial device and console
  *
  * Copyright (C) 2007 Google, Inc.
- * Copyright (c) 2009-2012, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2009-2011, Code Aurora Forum. All rights reserved.
  * Author: Robert Love <rlove@google.com>
  *
  * This software is licensed under the terms of the GNU General Public
@@ -36,6 +36,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <mach/msm_serial_pdata.h>
+#include <mach/board_htc.h>
 #include "msm_serial.h"
 
 
@@ -75,6 +76,8 @@ struct msm_port {
 #endif
 };
 
+static int msm_serial_enable;
+
 #define UART_TO_MSM(uart_port)	((struct msm_port *) uart_port)
 #define is_console(port)	((port)->cons && \
 				(port)->cons->index == (port)->line)
@@ -102,32 +105,48 @@ static void msm_stop_tx(struct uart_port *port)
 {
 	struct msm_port *msm_port = UART_TO_MSM(port);
 
+	clk_enable(msm_port->clk);
+
 	msm_port->imr &= ~UART_IMR_TXLEV;
 	msm_write(port, msm_port->imr, UART_IMR);
+
+	clk_disable(msm_port->clk);
 }
 
 static void msm_start_tx(struct uart_port *port)
 {
 	struct msm_port *msm_port = UART_TO_MSM(port);
 
+	clk_enable(msm_port->clk);
+
 	msm_port->imr |= UART_IMR_TXLEV;
 	msm_write(port, msm_port->imr, UART_IMR);
+
+	clk_disable(msm_port->clk);
 }
 
 static void msm_stop_rx(struct uart_port *port)
 {
 	struct msm_port *msm_port = UART_TO_MSM(port);
 
+	clk_enable(msm_port->clk);
+
 	msm_port->imr &= ~(UART_IMR_RXLEV | UART_IMR_RXSTALE);
 	msm_write(port, msm_port->imr, UART_IMR);
+
+	clk_disable(msm_port->clk);
 }
 
 static void msm_enable_ms(struct uart_port *port)
 {
 	struct msm_port *msm_port = UART_TO_MSM(port);
 
+	clk_enable(msm_port->clk);
+
 	msm_port->imr |= UART_IMR_DELTA_CTS;
 	msm_write(port, msm_port->imr, UART_IMR);
+
+	clk_disable(msm_port->clk);
 }
 
 #ifdef CONFIG_SERIAL_MSM_CLOCK_CONTROL
@@ -349,6 +368,7 @@ static irqreturn_t msm_irq(int irq, void *dev_id)
 	unsigned int misr;
 
 	spin_lock_irqsave(&port->lock, flags);
+	clk_enable(msm_port->clk);
 	misr = msm_read(port, UART_MISR);
 	msm_write(port, 0, UART_IMR); /* disable interrupt */
 
@@ -360,6 +380,7 @@ static irqreturn_t msm_irq(int irq, void *dev_id)
 		handle_delta_cts(port);
 
 	msm_write(port, msm_port->imr, UART_IMR); /* restore interrupt */
+	clk_disable(msm_port->clk);
 	spin_unlock_irqrestore(&port->lock, flags);
 
 	return IRQ_HANDLED;
@@ -368,8 +389,12 @@ static irqreturn_t msm_irq(int irq, void *dev_id)
 static unsigned int msm_tx_empty(struct uart_port *port)
 {
 	unsigned int ret;
+	struct msm_port *msm_port = UART_TO_MSM(port);
 
+	clk_enable(msm_port->clk);
 	ret = (msm_read(port, UART_SR) & UART_SR_TX_EMPTY) ? TIOCSER_TEMT : 0;
+	clk_disable(msm_port->clk);
+
 	return ret;
 }
 
@@ -381,6 +406,9 @@ static unsigned int msm_get_mctrl(struct uart_port *port)
 static void msm_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
 	unsigned int mr;
+	struct msm_port *msm_port = UART_TO_MSM(port);
+
+	clk_enable(msm_port->clk);
 
 	mr = msm_read(port, UART_MR1);
 
@@ -392,14 +420,22 @@ static void msm_set_mctrl(struct uart_port *port, unsigned int mctrl)
 		mr |= UART_MR1_RX_RDY_CTL;
 		msm_write(port, mr, UART_MR1);
 	}
+
+	clk_disable(msm_port->clk);
 }
 
 static void msm_break_ctl(struct uart_port *port, int break_ctl)
 {
+	struct msm_port *msm_port = UART_TO_MSM(port);
+
+	clk_enable(msm_port->clk);
+
 	if (break_ctl)
 		msm_write(port, UART_CR_CMD_START_BREAK, UART_CR);
 	else
 		msm_write(port, UART_CR_CMD_STOP_BREAK, UART_CR);
+
+	clk_disable(msm_port->clk);
 }
 
 static void msm_set_baud_rate(struct uart_port *port, unsigned int baud)
@@ -487,14 +523,9 @@ static void msm_reset(struct uart_port *port)
 
 static void msm_init_clock(struct uart_port *port)
 {
-	int ret;
 	struct msm_port *msm_port = UART_TO_MSM(port);
 
-	ret = clk_prepare_enable(msm_port->clk);
-	if (ret) {
-		pr_err("%s(): Can't enable uartclk. ret:%d\n", __func__, ret);
-		return;
-	}
+	clk_enable(msm_port->clk);
 
 #ifdef CONFIG_SERIAL_MSM_CLOCK_CONTROL
 	msm_port->clk_state = MSM_CLK_ON;
@@ -524,7 +555,7 @@ static void msm_deinit_clock(struct uart_port *port)
 		clk_disable(msm_port->clk);
 	msm_port->clk_state = MSM_CLK_PORT_OFF;
 #else
-	clk_disable_unprepare(msm_port->clk);
+	clk_disable(msm_port->clk);
 #endif
 
 }
@@ -603,8 +634,12 @@ static void msm_shutdown(struct uart_port *port)
 {
 	struct msm_port *msm_port = UART_TO_MSM(port);
 
+	clk_enable(msm_port->clk);
+
 	msm_port->imr = 0;
 	msm_write(port, 0, UART_IMR); /* disable interrupts */
+
+	clk_disable(msm_port->clk);
 
 	free_irq(port->irq, port);
 
@@ -625,8 +660,10 @@ static void msm_set_termios(struct uart_port *port, struct ktermios *termios,
 {
 	unsigned long flags;
 	unsigned int baud, mr;
+	struct msm_port *msm_port = UART_TO_MSM(port);
 
 	spin_lock_irqsave(&port->lock, flags);
+	clk_enable(msm_port->clk);
 
 	/* calculate and set baud rate */
 	baud = uart_get_baud_rate(port, termios, old, 300, 115200);
@@ -689,6 +726,8 @@ static void msm_set_termios(struct uart_port *port, struct ktermios *termios,
 		port->read_status_mask |= UART_SR_RX_BREAK;
 
 	uart_update_timeout(port, termios->c_cflag, baud);
+
+	clk_disable(msm_port->clk);
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 
@@ -756,23 +795,20 @@ static int msm_verify_port(struct uart_port *port, struct serial_struct *ser)
 static void msm_power(struct uart_port *port, unsigned int state,
 		      unsigned int oldstate)
 {
-	int ret;
+#ifndef CONFIG_SERIAL_MSM_CLOCK_CONTROL
 	struct msm_port *msm_port = UART_TO_MSM(port);
 
 	switch (state) {
 	case 0:
-		ret = clk_prepare_enable(msm_port->clk);
-		if (ret)
-			pr_err("msm_serial: %s(): Can't enable uartclk.\n",
-						__func__);
+		clk_enable(msm_port->clk);
 		break;
 	case 3:
-		clk_disable_unprepare(msm_port->clk);
+		clk_disable(msm_port->clk);
 		break;
 	default:
-		pr_err("msm_serial: %s(): Unknown PM state %d\n",
-						__func__, state);
+		printk(KERN_ERR "msm_serial: Unknown PM state %d\n", state);
 	}
+#endif
 }
 
 static struct uart_ops msm_uart_pops = {
@@ -1142,7 +1178,8 @@ static int __init msm_serial_init(void)
 static void __exit msm_serial_exit(void)
 {
 #ifdef CONFIG_SERIAL_MSM_CONSOLE
-	unregister_console(&msm_console);
+	if (msm_serial_enable)
+		unregister_console(&msm_console);
 #endif
 	platform_driver_unregister(&msm_platform_driver);
 	uart_unregister_driver(&msm_uart_driver);

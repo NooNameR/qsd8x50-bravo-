@@ -33,6 +33,11 @@ struct smd_tty_info {
 	smd_channel_t *ch;
 };
 
+struct smd_tty_channel_desc {
+	int id;
+	const char *name;
+};
+
 static struct smd_tty_info smd_tty[MAX_SMD_TTYS];
 
 static const struct smd_tty_channel_desc smd_default_tty_channels[] = {
@@ -43,13 +48,6 @@ static const struct smd_tty_channel_desc smd_default_tty_channels[] = {
 static const struct smd_tty_channel_desc *smd_tty_channels =
 		smd_default_tty_channels;
 static int smd_tty_channels_len = ARRAY_SIZE(smd_default_tty_channels);
-
-int smd_set_channel_list(const struct smd_tty_channel_desc *channels, int len)
-{
-	smd_tty_channels = channels;
-	smd_tty_channels_len = len;
-	return 0;
-}
 
 static void smd_tty_notify(void *priv, unsigned event)
 {
