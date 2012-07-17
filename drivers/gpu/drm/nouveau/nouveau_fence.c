@@ -488,8 +488,6 @@ nouveau_fence_channel_init(struct nouveau_channel *chan)
 
 	FIRE_RING(chan);
 
-	INIT_LIST_HEAD(&chan->fence.pending);
-	spin_lock_init(&chan->fence.lock);
 	atomic_set(&chan->fence.last_sequence_irq, 0);
 
 	return 0;

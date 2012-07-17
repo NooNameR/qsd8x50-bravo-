@@ -1,0 +1,12 @@
+--- drivers/gpu/drm/ttm/ttm_bo.c
++++ drivers/gpu/drm/ttm/ttm_bo.c
+@@ -394,7 +394,8 @@
+ 
+ 	if (!(new_man->flags & TTM_MEMTYPE_FLAG_FIXED)) {
+ 		if (bo->ttm == NULL) {
+-			ret = ttm_bo_add_ttm(bo, false);
++			bool zero = !(old_man->flags & TTM_MEMTYPE_FLAG_FIXED);
++			ret = ttm_bo_add_ttm(bo, zero);
+ 			if (ret)
+ 				goto out_err;
+ 		}

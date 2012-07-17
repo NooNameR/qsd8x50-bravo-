@@ -1,0 +1,11 @@
+--- drivers/gpu/drm/radeon/atombios_dp.c
++++ drivers/gpu/drm/radeon/atombios_dp.c
+@@ -283,7 +283,7 @@
+ 		}
+ 	}
+ 
+-	DRM_ERROR("aux i2c too many retries, giving up\n");
++	DRM_DEBUG_KMS("aux i2c too many retries, giving up\n");
+ 	return -EREMOTEIO;
+ }
+ 

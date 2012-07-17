@@ -53,6 +53,10 @@ static void i915_save_palette(struct drm_device *dev, enum pipe pipe)
 	if (!i915_pipe_enabled(dev, pipe))
 		return;
 
+	/* On IVB, 3rd pipe shares PLL with another one */
+	if (pipe > 1)
+		return false;
+
 	if (HAS_PCH_SPLIT(dev))
 		reg = (pipe == PIPE_A) ? LGC_PALETTE_A : LGC_PALETTE_B;
 
@@ -371,6 +375,7 @@ static void i915_save_modeset_reg(struct drm_device *dev)
 
 	/* Fences */
 	switch (INTEL_INFO(dev)->gen) {
+	case 7:
 	case 6:
 		for (i = 0; i < 16; i++)
 			dev_priv->saveFENCE[i] = I915_READ64(FENCE_REG_SANDYBRIDGE_0 + (i * 8));
@@ -405,6 +410,7 @@ static void i915_restore_modeset_reg(struct drm_device *dev)
 
 	/* Fences */
 	switch (INTEL_INFO(dev)->gen) {
+	case 7:
 	case 6:
 		for (i = 0; i < 16; i++)
 			I915_WRITE64(FENCE_REG_SANDYBRIDGE_0 + (i * 8), dev_priv->saveFENCE[i]);
@@ -812,6 +818,7 @@ int i915_save_state(struct drm_device *dev)
 		dev_priv->saveFDI_RXB_IMR = I915_READ(FDI_RXB_IMR);
 		dev_priv->saveMCHBAR_RENDER_STANDBY =
 			I915_READ(RSTDBYCTL);
+		dev_priv->savePCH_PORT_HOTPLUG = I915_READ(PCH_PORT_HOTPLUG);
 	} else {
 		dev_priv->saveIER = I915_READ(IER);
 		dev_priv->saveIMR = I915_READ(IMR);

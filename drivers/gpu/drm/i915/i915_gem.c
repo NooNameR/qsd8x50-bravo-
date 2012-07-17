@@ -1462,7 +1462,7 @@ i915_gem_mmap_gtt_ioctl(struct drm_device *dev, void *data,
 
 	if (obj->base.size > dev_priv->mm.gtt_mappable_end) {
 		ret = -E2BIG;
-		goto unlock;
+		goto out;
 	}
 
 	if (obj->madv != I915_MADV_WILLNEED) {

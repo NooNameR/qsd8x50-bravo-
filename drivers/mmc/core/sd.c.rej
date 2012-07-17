@@ -1,0 +1,10 @@
+--- drivers/mmc/core/sd.c
++++ drivers/mmc/core/sd.c
+@@ -1008,6 +1008,7 @@
+ 
+ 		mmc_claim_host(host);
+ 		mmc_detach_bus(host);
++		mmc_power_off(host);
+ 		mmc_release_host(host);
+ 	}
+ }

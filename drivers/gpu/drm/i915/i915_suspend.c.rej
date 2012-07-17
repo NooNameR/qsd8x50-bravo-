@@ -1,0 +1,10 @@
+--- drivers/gpu/drm/i915/i915_suspend.c
++++ drivers/gpu/drm/i915/i915_suspend.c
+@@ -866,6 +867,7 @@
+ 		I915_WRITE(GTIMR, dev_priv->saveGTIMR);
+ 		I915_WRITE(_FDI_RXA_IMR, dev_priv->saveFDI_RXA_IMR);
+ 		I915_WRITE(_FDI_RXB_IMR, dev_priv->saveFDI_RXB_IMR);
++		I915_WRITE(PCH_PORT_HOTPLUG, dev_priv->savePCH_PORT_HOTPLUG);
+ 	} else {
+ 		I915_WRITE(IER, dev_priv->saveIER);
+ 		I915_WRITE(IMR, dev_priv->saveIMR);

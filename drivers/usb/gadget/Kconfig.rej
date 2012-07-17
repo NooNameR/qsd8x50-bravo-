@@ -1,0 +1,11 @@
+--- drivers/usb/gadget/Kconfig
++++ drivers/usb/gadget/Kconfig
+@@ -544,7 +544,7 @@
+ 	select USB_GADGET_SELECTED
+ 
+ config USB_GADGET_EG20T
+-	boolean "Intel EG20T PCH/OKI SEMICONDUCTOR ML7213 IOH UDC"
++	tristate "Intel EG20T PCH/OKI SEMICONDUCTOR IOH(ML7213/ML7831) UDC"
+ 	depends on PCI
+ 	select USB_GADGET_DUALSPEED
+ 	help
