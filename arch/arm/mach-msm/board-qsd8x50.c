@@ -1770,8 +1770,11 @@ static struct msm_otg_platform_data msm_otg_pdata = {
 static struct msm_hsusb_gadget_platform_data msm_gadget_pdata;
 
 static struct platform_device *devices[] __initdata = {
+	&msm_device_uart3,
+	&msm_device_otg,
 	&msm_fb_device,
 	&mddi_toshiba_device,
+	//&msm_device_hsusb,
 	&smc91x_device,
 	&msm_device_smd,
 	&msm_device_dmov,
@@ -2441,6 +2444,11 @@ static void __init qsd8x50_init(void)
 	msm_pm_set_platform_data(msm_pm_data, ARRAY_SIZE(msm_pm_data));
 	BUG_ON(msm_pm_boot_init(&msm_pm_boot_pdata));
 	msm_pm_register_irqs();
+
+	msm_device_otg.dev.platform_data = &msm_otg_pdata;
+	//msm_device_hsusb.dev.parent = &msm_device_otg.dev;
+	msm_device_hsusb_host.dev.parent = &msm_device_otg.dev;
+	platform_add_devices(devices, ARRAY_SIZE(devices));
 
 #ifdef CONFIG_SURF_FFA_GPIO_KEYPAD
 	if (machine_is_qsd8x50_ffa())
