@@ -1,0 +1,13 @@
+text="ps_kparam1";
+for i in `ls`
+do
+	echo $i
+	cat $i | grep $text
+done
+
+cd include/mach
+for i in `ls`
+do
+	echo $i
+	cat $i | grep $text
+done

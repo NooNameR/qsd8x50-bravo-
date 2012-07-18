@@ -81,7 +81,7 @@ obj-$(CONFIG_MSM_PIL_RIVA) += pil-riva.o
 obj-$(CONFIG_MSM_PIL_TZAPPS) += pil-tzapps.o
 obj-$(CONFIG_MSM_PIL_MODEM) += pil-modem.o
 obj-$(CONFIG_MSM_PIL_GSS) += pil-gss.o
-obj-$(CONFIG_ARCH_QSD8X50) += sirc.o
+obj-$(CONFIG_ARCH_QSD8X50) += sirc.o# devices_htc.o
 obj-$(CONFIG_ARCH_FSM9XXX) += sirc-fsm9xxx.o
 obj-$(CONFIG_MSM_FIQ_SUPPORT) += fiq_glue.o
 obj-$(CONFIG_MACH_TROUT) += board-trout-rfkill.o
@@ -154,7 +154,7 @@ obj-$(CONFIG_MSM_AUDIO_QDSP6) += qdsp6v2/
 obj-$(CONFIG_MSM_HW3D) += hw3d.o
 obj-$(CONFIG_PM) += pm-boot.o
 obj-$(CONFIG_MSM_PM8X60) += pm-8x60.o
-obj-$(CONFIG_MSM_PM2) += pm.o
+obj-$(CONFIG_MSM_PM2) += pm2.o
 obj-$(CONFIG_MSM_PM) += pm.o
 obj-$(CONFIG_MSM_NOPM) += no-pm.o
 

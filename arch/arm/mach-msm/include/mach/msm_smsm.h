@@ -13,6 +13,7 @@
 #ifndef _ARCH_ARM_MACH_MSM_SMSM_H_
 #define _ARCH_ARM_MACH_MSM_SMSM_H_
 
+
 #if defined(CONFIG_MSM_N_WAY_SMSM)
 enum {
 	SMSM_APPS_STATE,
