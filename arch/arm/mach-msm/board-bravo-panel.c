@@ -28,7 +28,7 @@
 #include <asm/mach-types.h>
 #include <asm/setup.h>
 
-#include <mach/msm_fb.h>
+#include <mach/msm_fb-8x50.h>
 #include <mach/pmic.h>
 #include <mach/msm_iomap.h>
 #include <mach/vreg.h>

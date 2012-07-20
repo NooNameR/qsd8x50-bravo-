@@ -14,19 +14,19 @@
  *
  */
 
-#include <linux/slab.h>
+#include <linux/version.h>
 #include <linux/fs.h>
 #include <linux/module.h>
 #include <linux/miscdevice.h>
 #include <linux/mutex.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <linux/wait.h>
 #include <linux/uaccess.h>
 
 #include <linux/msm_audio.h>
 
 #include <mach/msm_qdsp6_audio.h>
-#include <mach/debug_mm.h>
 
 #define BUFSZ (8192)
 #define DMASZ (BUFSZ * 2)
@@ -55,8 +55,6 @@ static long mp3_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	switch (cmd) {
 	case AUDIO_SET_VOLUME: {
 		int vol;
-		pr_debug("[%s:%s] SET_VOLUME = %d\n", __MM_FILE__,
-			__func__, vol);
 		if (copy_from_user(&vol, (void*) arg, sizeof(vol))) {
 			rc = -EFAULT;
 			break;
@@ -66,32 +64,24 @@ static long mp3_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	}
 	case AUDIO_START: {
 		uint32_t acdb_id;
-		pr_debug("[%s:%s] AUDIO_START\n", __MM_FILE__, __func__);
 		if (arg == 0) {
 			acdb_id = 0;
 		} else if (copy_from_user(&acdb_id, (void*) arg, sizeof(acdb_id))) {
-			pr_info("[%s:%s] copy acdb_id from user failed\n",
-					__MM_FILE__, __func__);
+			pr_info("pcm_out: copy acdb_id from user failed\n");
 			rc = -EFAULT;
 			break;
 		}
 		if (mp3->ac) {
-			pr_err("[%s:%s] active session already existing\n",
-				__MM_FILE__, __func__);
 			rc = -EBUSY;
 		} else {
 			mp3->ac = q6audio_open_mp3(BUFSZ,
 				mp3->sample_rate, mp3->channel_count, acdb_id);
-			if (!mp3->ac) {
-				pr_err("[%s:%s] mp3 open session failed\n",
-					__MM_FILE__, __func__);
+			if (!mp3->ac)
 				rc = -ENOMEM;
-			}
 		}
 		break;
 	}
 	case AUDIO_STOP:
-		pr_debug("[%s:%s] AUDIO_STOP\n", __MM_FILE__, __func__);
 		break;
 	case AUDIO_FLUSH:
 		break;
@@ -99,22 +89,14 @@ static long mp3_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		struct msm_audio_config config;
 		if (mp3->ac) {
 			rc = -EBUSY;
-			pr_err("[%s:%s] active session already existing\n",
-				__MM_FILE__, __func__);
 			break;
 		}
 		if (copy_from_user(&config, (void*) arg, sizeof(config))) {
 			rc = -EFAULT;
 			break;
 		}
-		pr_debug("[%s:%s] SET_CONFIG: buffsize = %d, samplerate = %d, \
-			channelcount = %d\n", __MM_FILE__, __func__,
-			config.buffer_size, config.sample_rate,
-			config.channel_count);
 		if (config.channel_count < 1 || config.channel_count > 2) {
 			rc = -EINVAL;
-			pr_err("[%s:%s] invalid channelcount\n", __MM_FILE__,
-				__func__);
 			break;
 		}
 		mp3->sample_rate = config.sample_rate;
@@ -133,17 +115,12 @@ static long mp3_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (copy_to_user((void*) arg, &config, sizeof(config))) {
 			rc = -EFAULT;
 		}
-		pr_debug("[%s:%s] GET_CONFIG: buffsize = %d, samplerate = %d, \
-			channelcount = %d\n", __MM_FILE__, __func__,
-			config.buffer_size, config.sample_rate,
-			config.channel_count);
 		break;
 	}
 	default:
 		rc = -EINVAL;
 	}
 	mutex_unlock(&mp3->lock);
-	pr_debug("[%s:%s] rc = %d\n", __MM_FILE__, __func__, rc);
 	return rc;
 }
 
@@ -152,7 +129,6 @@ static int mp3_open(struct inode *inode, struct file *file)
 	int rc = 0;
 
 	struct mp3 *mp3;
-	pr_info("[%s:%s] open\n", __MM_FILE__, __func__);
 	mp3 = kzalloc(sizeof(struct mp3), GFP_KERNEL);
 
 	if (!mp3)
@@ -175,7 +151,6 @@ static ssize_t mp3_write(struct file *file, const char __user *buf,
 	const char __user *start = buf;
 	int xfer;
 
-	pr_debug("[%s:%s] count = %d\n", __MM_FILE__, __func__, count);
 	if (!mp3->ac)
 		mp3_ioctl(file, AUDIO_START, 0);
 
@@ -189,8 +164,6 @@ static ssize_t mp3_write(struct file *file, const char __user *buf,
 		if (ab->used)
 			wait_event(ac->wait, (ab->used == 0));
 
-		pr_debug("[%s:%s] ab->data = %p, ac->cpu_buf = %d\n",
-			__MM_FILE__, __func__, ab->data, ac->cpu_buf);
 		xfer = count;
 		if (xfer > ab->size)
 			xfer = ab->size;
@@ -209,7 +182,11 @@ static ssize_t mp3_write(struct file *file, const char __user *buf,
 	return buf - start;
 }
 
+#if (LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 34))
 static int mp3_fsync(struct file *f, int datasync)
+#else
+static int mp3_fsync(struct file *f, struct dentry *dentry, int datasync)
+#endif
 {
 	struct mp3 *mp3 = f->private_data;
 	if (mp3->ac)
@@ -223,7 +200,6 @@ static int mp3_release(struct inode *inode, struct file *file)
 	if (mp3->ac)
 		q6audio_mp3_close(mp3->ac);
 	kfree(mp3);
-	pr_info("[%s:%s] release\n", __MM_FILE__, __func__);
 	return 0;
 }
 

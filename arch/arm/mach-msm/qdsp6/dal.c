@@ -14,7 +14,6 @@
  *
  */
 
-#include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
@@ -22,12 +21,10 @@
 #include <linux/sched.h>
 #include <linux/wait.h>
 #include <linux/errno.h>
-
+#include <linux/slab.h>
 #include <linux/delay.h>
 
 #include <mach/msm_smd.h>
-#include <mach/debug_mm.h>
-#include <mach/msm_qdsp6_audio.h>
 
 #include "dal.h"
 
@@ -162,7 +159,7 @@ void dal_trace_dump(struct dal_client *c)
 
 	for (n = c->tr_tail; n != c->tr_head; n = (n + 1) & TRACE_LOG_MASK) {
 		dt = c->tr_log + n;
-		len = dt->hdr.length - sizeof(dt->hdr);
+		len = dt->hdr.length;
 		if (len > TRACE_DATA_MAX)
 			len = TRACE_DATA_MAX;
 		dal_trace_print(&dt->hdr, dt->data, len, dt->timestamp);
@@ -228,8 +225,8 @@ again:
 				goto check_data;
 			}
 		}
-		pr_err("[%s:%s] $$$ receiving unknown message len = %d $$$\n",
-				__MM_FILE__, __func__, dch->count);
+		pr_err("$$$ receiving unknown message len = %d $$$\n",
+		       dch->count);
 		dch->active = 0;
 		dch->ptr = dch->data;
 	}
@@ -245,17 +242,16 @@ check_data:
 			panic("invalid read");
 
 #if DAL_TRACE
-		pr_info("[%s:%s] dal recv %p <- %p %02x:%04x:%02x %d\n",
-			__MM_FILE__, __func__, hdr->to, hdr->from, hdr->msgid,
-			hdr->ddi, hdr->prototype, hdr->length - sizeof(*hdr));
+		pr_info("dal recv %p <- %p %02x:%04x:%02x %d\n",
+			hdr->to, hdr->from, hdr->msgid, hdr->ddi,
+			hdr->prototype, hdr->length - sizeof(*hdr));
 		print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, dch->ptr, len);
 #endif
 		dch->count = 0;
 
 		client = dch->active;
 		if (!client) {
-			pr_err("[%s:%s] message to %p discarded\n",
-				__MM_FILE__, __func__, dch->hdr.to);
+			pr_err("dal: message to %p discarded\n", dch->hdr.to);
 			goto again;
 		}
 
@@ -266,9 +262,8 @@ check_data:
 			if (client->event)
 				client->event(dch->ptr, len, client->cookie);
 			else
-				pr_err("[%s:%s] client %p has no event \
-					handler\n", __MM_FILE__, __func__,
-					client);
+				pr_err("dal: client %p has no event handler\n",
+				       client);
 			goto again;
 		}
 
@@ -283,8 +278,7 @@ check_data:
 			goto again;
 		}
 
-		pr_err("[%s:%s] cannot find client %p\n", __MM_FILE__,
-				__func__, dch->hdr.to);
+		pr_err("dal: cannot find client %p\n", dch->hdr.to);
 		goto again;
 	}
 
@@ -295,11 +289,16 @@ done:
 static LIST_HEAD(dal_channel_list);
 static DEFINE_MUTEX(dal_channel_list_lock);
 
-static struct dal_channel *dal_open_channel(const char *name, uint32_t cpu)
+static struct dal_channel *dal_open_channel(const char *name)
 {
 	struct dal_channel *dch;
 
-	pr_debug("[%s:%s]\n", __MM_FILE__, __func__);
+	/* quick sanity check to avoid trying to talk to
+	 * some non-DAL channel...
+	 */
+	if (strncmp(name, "DSP_DAL", 7) && strncmp(name, "SMD_DAL", 7))
+		return 0;
+
 	mutex_lock(&dal_channel_list_lock);
 
 	list_for_each_entry(dch, &dal_channel_list, list) {
@@ -320,12 +319,8 @@ static struct dal_channel *dal_open_channel(const char *name, uint32_t cpu)
 
 found_it:
 	if (!dch->sch) {
-		if (smd_named_open_on_edge(name, cpu, &dch->sch,
-					dch, dal_channel_notify)) {
-			pr_err("[%s:%s] smd open failed\n", __MM_FILE__,
-					__func__);
+		if (smd_open(name, &dch->sch, dch, dal_channel_notify))
 			dch = NULL;
-		}
 		/* FIXME: wait for channel to open before returning */
 		msleep(100);
 	}
@@ -350,10 +345,9 @@ int dal_call_raw(struct dal_client *client,
 	client->status = -EBUSY;
 
 #if DAL_TRACE
-	pr_info("[%s:%s:%x] dal send %p -> %p %02x:%04x:%02x %d\n",
-		__MM_FILE__, __func__, (unsigned int)client, hdr->from, hdr->to,
-		hdr->msgid, hdr->ddi, hdr->prototype,
-		hdr->length - sizeof(*hdr));
+	pr_info("dal send %p -> %p %02x:%04x:%02x %d\n",
+		hdr->from, hdr->to, hdr->msgid, hdr->ddi,
+		hdr->prototype, hdr->length - sizeof(*hdr));
 	print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, data, data_len);
 #endif
 
@@ -368,10 +362,9 @@ int dal_call_raw(struct dal_client *client,
 
 	if (!wait_event_timeout(client->wait, (client->status != -EBUSY), 5*HZ)) {
 		dal_trace_dump(client);
-		pr_err("[%s:%s] call timed out. dsp is probably dead.\n",
-				__MM_FILE__, __func__);
+		pr_err("dal: call timed out. dsp is probably dead.\n");
 		dal_trace_print(hdr, data, data_len, 0);
-		q6audio_dsp_not_responding();
+		BUG();
 	}
 
 	return client->status;
@@ -401,7 +394,13 @@ int dal_call(struct dal_client *client,
 	mutex_lock(&client->write_lock);
 	r = dal_call_raw(client, &hdr, data, data_len, reply, reply_max);
 	mutex_unlock(&client->write_lock);
-
+#if 0
+	if ((r > 3) && (((uint32_t*) reply)[0] == 0)) {
+		pr_info("dal call OK\n");
+	} else {
+		pr_info("dal call ERROR\n");
+	}
+#endif
 	return r;
 }
 
@@ -417,7 +416,7 @@ struct dal_reply_attach {
 };
 
 struct dal_client *dal_attach(uint32_t device_id, const char *name,
-			      uint32_t cpu, dal_event_func_t func, void *cookie)
+			      dal_event_func_t func, void *cookie)
 {
 	struct dal_hdr hdr;
 	struct dal_msg_attach msg;
@@ -427,8 +426,7 @@ struct dal_client *dal_attach(uint32_t device_id, const char *name,
 	unsigned long flags;
 	int r;
 
-	pr_debug("[%s:%s]\n", __MM_FILE__, __func__);
-	dch = dal_open_channel(name, cpu);
+	dch = dal_open_channel(name);
 	if (!dch)
 		return 0;
 
@@ -461,13 +459,12 @@ struct dal_client *dal_attach(uint32_t device_id, const char *name,
 
 	if ((r == sizeof(reply)) && (reply.status == 0)) {
 		reply.name[63] = 0;
-		pr_info("[%s:%s] status = %d, name = '%s' dal_client %x\n",
-			__MM_FILE__, __func__, reply.status,
-			reply.name, (unsigned int)client);
+		pr_info("dal_attach: status = %d, name = '%s'\n",
+			reply.status, reply.name);
 		return client;
 	}
 
-	pr_err("[%s:%s] failure\n", __MM_FILE__, __func__);
+	pr_err("dal_attach: failure\n");
 
 	dal_detach(client);
 	return 0;
@@ -478,7 +475,6 @@ int dal_detach(struct dal_client *client)
 	struct dal_channel *dch;
 	unsigned long flags;
 
-	pr_debug("[%s:%s]\n", __MM_FILE__, __func__);
 	mutex_lock(&client->write_lock);
 	if (client->remote) {
 		struct dal_hdr hdr;
@@ -533,8 +529,7 @@ int dal_call_f0(struct dal_client *client, uint32_t ddi, uint32_t arg1)
 	return res;
 }
 
-int dal_call_f1(struct dal_client *client, uint32_t ddi, uint32_t arg1,
-		uint32_t arg2)
+int dal_call_f1(struct dal_client *client, uint32_t ddi, uint32_t arg1, uint32_t arg2)
 {
 	uint32_t tmp[2];
 	int res;
@@ -568,31 +563,6 @@ int dal_call_f5(struct dal_client *client, uint32_t ddi, void *ibuf, uint32_t il
 	return res;
 }
 
-int dal_call_f6(struct dal_client *client, uint32_t ddi, uint32_t s1,
-		void *ibuf, uint32_t ilen)
-{
-	uint32_t tmp[128];
-	int res;
-	int param_idx = 0;
-
-	if (ilen + 8 > DAL_DATA_MAX)
-		return -EINVAL;
-
-	tmp[param_idx] = s1;
-	param_idx++;
-	tmp[param_idx] = ilen;
-	param_idx++;
-	memcpy(&tmp[param_idx], ibuf, ilen);
-	param_idx += DIV_ROUND_UP(ilen, 4);
-
-	res = dal_call(client, ddi, 6, tmp, param_idx * 4, tmp, sizeof(tmp));
-
-	if (res >= 4)
-		return (int) tmp[0];
-
-	return res;
-}
-
 int dal_call_f9(struct dal_client *client, uint32_t ddi, void *obuf,
 		uint32_t olen)
 {
@@ -617,50 +587,15 @@ int dal_call_f9(struct dal_client *client, uint32_t ddi, void *obuf,
 	return res;
 }
 
-int dal_call_f11(struct dal_client *client, uint32_t ddi, uint32_t s1,
-		void *obuf, uint32_t olen)
-{
-	uint32_t tmp[DAL_DATA_MAX/4] = {0};
-	int res;
-	int param_idx = 0;
-	int num_bytes = 4;
-
-	num_bytes += (DIV_ROUND_UP(olen, 4)) * 4;
-
-	if ((num_bytes > DAL_DATA_MAX - 12) || (olen > DAL_DATA_MAX - 8))
-		return -EINVAL;
-
-	tmp[param_idx] = s1;
-	param_idx++;
-	tmp[param_idx] = olen;
-	param_idx += DIV_ROUND_UP(olen, 4);
-
-	res = dal_call(client, ddi, 11, tmp, param_idx * 4, tmp, sizeof(tmp));
-
-	if (res >= 4)
-		res = (int) tmp[0];
-	if (!res) {
-		if (tmp[1] > olen)
-			return -EIO;
-		memcpy(obuf, &tmp[2], tmp[1]);
-	}
-	return res;
-}
-
 int dal_call_f13(struct dal_client *client, uint32_t ddi, void *ibuf1,
 		 uint32_t ilen1, void *ibuf2, uint32_t ilen2, void *obuf,
 		 uint32_t olen)
 {
-	uint32_t tmp[DAL_DATA_MAX/4];
+	uint32_t tmp[128];
 	int res;
 	int param_idx = 0;
-	int num_bytes = 0;
 
-	num_bytes = (DIV_ROUND_UP(ilen1, 4)) * 4;
-	num_bytes += (DIV_ROUND_UP(ilen2, 4)) * 4;
-
-	if ((num_bytes > DAL_DATA_MAX - 12) || (olen > DAL_DATA_MAX - 8) ||
-			(ilen1 > DAL_DATA_MAX) || (ilen2 > DAL_DATA_MAX))
+	if (ilen1 + ilen2 + 8 > DAL_DATA_MAX)
 		return -EINVAL;
 
 	tmp[param_idx] = ilen1;
@@ -674,8 +609,7 @@ int dal_call_f13(struct dal_client *client, uint32_t ddi, void *ibuf1,
 	param_idx += DIV_ROUND_UP(ilen2, 4);
 
 	tmp[param_idx++] = olen;
-	res = dal_call(client, ddi, 13, tmp, param_idx * 4, tmp,
-			sizeof(tmp));
+	res = dal_call(client, ddi, 13, tmp, param_idx * 4, tmp, sizeof(tmp));
 
 	if (res >= 4)
 		res = (int)tmp[0];
@@ -687,6 +621,7 @@ int dal_call_f13(struct dal_client *client, uint32_t ddi, void *ibuf1,
 	}
 	return res;
 }
+
 int dal_call_f14(struct dal_client *client, uint32_t ddi, void *ibuf,
 		 uint32_t ilen, void *obuf1, uint32_t olen1, void *obuf2,
 		 uint32_t olen2, uint32_t *oalen2)

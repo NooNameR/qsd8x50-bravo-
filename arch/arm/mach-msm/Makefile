@@ -349,6 +349,8 @@ obj-$(CONFIG_MACH_BRAVO) += board-bravo-tpa2018d1.o
 obj-$(CONFIG_MACH_BRAVO) += board-bravo-smb329.o
 obj-$(CONFIG_MACH_BRAVO) += htc_board_tags.o
 obj-$(CONFIG_MACH_BRAVO) += htc_acoustic_qsd.o htc_35mm_jack.o
+obj-$(CONFIG_MACH_BRAVO) += board-bravo-audio.o board-bravo-rfkill.o board-bravo-flashlight.o
+obj-$(CONFIG_MACH_BRAVO) += msm_vibrator.o
 
 obj-y += drv_callback.o
 #obj-$(CONFIG_MICROP_COMMON) += atmega_microp_common.o

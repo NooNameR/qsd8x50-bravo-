@@ -19,23 +19,14 @@
 
 #define AUDIO_FLAG_READ		0
 #define AUDIO_FLAG_WRITE	1
-#define AUDIO_FLAG_INCALL_MIXED	2
 
 #include <linux/wait.h>
-
-enum {
-	DEVICE_UNMUTE = 0,
-	DEVICE_MUTE,
-	STREAM_UNMUTE,
-	STREAM_MUTE,
-};
 
 struct audio_buffer {
 	dma_addr_t phys;
 	void *data;
 	uint32_t size;
 	uint32_t used;	/* 1 = CPU is waiting for DSP to consume this buf */
-	uint32_t actual_size; /* actual number of bytes read by DSP */
 };
 
 struct audio_client {
@@ -52,6 +43,20 @@ struct audio_client {
 	uint32_t flags;
 };
 
+#define Q6_HW_HANDSET	0
+#define Q6_HW_HEADSET	1
+#define Q6_HW_SPEAKER	2
+#define Q6_HW_TTY	3
+#define Q6_HW_BT_SCO	4
+#define Q6_HW_BT_A2DP	5
+
+#define Q6_HW_COUNT	6
+
+struct q6_hw_info {
+	int min_gain;
+	int max_gain;
+};
+
 /* Obtain a 16bit signed, interleaved audio channel of the specified
  * rate (Hz) and channels (1 or 2), with two buffers of bufsz bytes.
  */
@@ -59,36 +64,25 @@ struct audio_client *q6audio_open_pcm(uint32_t bufsz, uint32_t rate,
 				      uint32_t channels, uint32_t flags,
 				      uint32_t acdb_id);
 
-struct audio_client *q6audio_open_auxpcm(uint32_t rate, uint32_t channels,
-					uint32_t flags, uint32_t acdb_id);
-
-struct audio_client *q6voice_open(uint32_t flags);
+struct audio_client *q6voice_open(uint32_t flags, uint32_t acdb_id);
 
 struct audio_client *q6audio_open_mp3(uint32_t bufsz, uint32_t rate,
 				      uint32_t channels, uint32_t acdb_id);
 
-struct audio_client *q6audio_open_dtmf(uint32_t rate, uint32_t channels,
-							uint32_t acdb_id);
-int q6audio_play_dtmf(struct audio_client *ac, uint16_t dtmf_hi,
-			uint16_t dtmf_low, uint16_t duration, uint16_t rx_gain);
+struct audio_client *q6fm_open(void);
 
-struct audio_client *q6audio_open_aac(uint32_t bufsz, uint32_t samplerate,
-					uint32_t channels, uint32_t bitrate,
-					uint32_t stream_format, uint32_t flags,
-					uint32_t acdb_id);
+struct audio_client *q6audio_open_aac(uint32_t bufsz, uint32_t rate,
+				      uint32_t flags, void *data, uint32_t acdb_id);
 
-struct audio_client *q6audio_open_qcp(uint32_t bufsz, uint32_t min_rate,
-					uint32_t max_rate, uint32_t flags,
-					uint32_t format, uint32_t acdb_id);
-
-struct audio_client *q6audio_open_amrnb(uint32_t bufsz, uint32_t enc_mode,
-					uint32_t dtx_enable, uint32_t flags,
-					uint32_t acdb_id);
+struct audio_client *q6audio_open_qcelp(uint32_t bufsz, uint32_t rate,
+				      void *data, uint32_t acdb_id);
 
 int q6audio_close(struct audio_client *ac);
-int q6audio_auxpcm_close(struct audio_client *ac);
 int q6voice_close(struct audio_client *ac);
 int q6audio_mp3_close(struct audio_client *ac);
+int q6fm_close(struct audio_client *ac);
+int q6audio_aac_close(struct audio_client *ac);
+int q6audio_qcelp_close(struct audio_client *ac);
 
 int q6audio_read(struct audio_client *ac, struct audio_buffer *ab);
 int q6audio_write(struct audio_client *ac, struct audio_buffer *ab);
@@ -100,7 +94,6 @@ int q6audio_reinit_acdb(char* filename);
 int q6audio_update_acdb(uint32_t id_src, uint32_t id_dst);
 int q6audio_set_rx_volume(int level);
 int q6audio_set_stream_volume(struct audio_client *ac, int vol);
-int q6audio_set_stream_eq_pcm(struct audio_client *ac, void *eq_config);
 
 struct q6audio_analog_ops {
 	void (*init)(void);
@@ -110,9 +103,17 @@ struct q6audio_analog_ops {
 	void (*bt_sco_enable)(int en);
 	void (*int_mic_enable)(int en);
 	void (*ext_mic_enable)(int en);
+	void (*i2s_enable)(int en);
+	int (*get_rx_vol)(uint8_t hw, int level);
 };
 
+#ifdef CONFIG_MSM_QDSP6
 void q6audio_register_analog_ops(struct q6audio_analog_ops *ops);
+void q6audio_set_acdb_file(char* filename);
+#else
+static inline void q6audio_register_analog_ops(struct q6audio_analog_ops *ops) {}
+static inline void q6audio_set_acdb_file(char* filename) {}
+#endif
 
 /* signal non-recoverable DSP error so we can log and/or panic */
 void q6audio_dsp_not_responding(void);

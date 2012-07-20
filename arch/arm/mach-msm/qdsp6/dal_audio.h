@@ -1,13 +1,28 @@
-/* Copyright (c) 2009-2010, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2009, Code Aurora Forum. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in the
+ *       documentation and/or other materials provided with the distribution.
+ *     * Neither the name of Code Aurora Forum nor
+ *       the names of its contributors may be used to endorse or promote
+ *       products derived from this software without specific prior written
+ *       permission.
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  *
  */
 
@@ -17,7 +32,7 @@
 #include "dal_audio_format.h"
 
 #define AUDIO_DAL_DEVICE 0x02000028
-#define AUDIO_DAL_PORT "DAL_AQ_AUD"
+#define AUDIO_DAL_PORT "DSP_DAL_AQ_AUD"
 
 enum {
 	AUDIO_OP_CONTROL = DAL_OP_FIRST_DEVICE_API,
@@ -184,9 +199,6 @@ union adsp_audio_codec_config {
 /* This bit, if set, indicates that the sync clock is enabled */
 #define  ADSP_AUDIO_OPEN_STREAM_MODE_ENABLE_SYNC_CLOCK	0x0004
 
-/* This bit, if set, indicates that the AUX PCM loopback is enabled */
-#define  ADSP_AUDIO_OPEN_STREAM_MODE_AUX_PCM		0x0040
-
 struct adsp_open_command {
 	struct adsp_command_hdr hdr;
 
@@ -255,46 +267,10 @@ struct adsp_device_switch_command {
 #define ADSP_PATH_RX	0
 #define ADSP_PATH_TX	1
 #define ADSP_PATH_BOTH	2
-#define ADSP_PATH_TX_CNG_DIS 3
-
-struct adsp_audio_dtmf_start_command {
-	struct adsp_command_hdr hdr;
-	u32 tone1_hz;
-	u32 tone2_hz;
-	u32 duration_usec;
-	s32 gain_mb;
-} __attribute__ ((packed));
 
 /* These commands will affect a logical device and all its associated */
 /* streams. */
 
-#define ADSP_AUDIO_MAX_EQ_BANDS 12
-
-struct adsp_audio_eq_band {
-	u16     band_idx; /* The band index, 0 .. 11 */
-	u32     filter_type; /* Filter band type */
-	u32     center_freq_hz; /* Filter band center frequency */
-	s32     filter_gain; /* Filter band initial gain (dB) */
-			/* Range is +12 dB to -12 dB with 1dB increments. */
-	s32     q_factor;
-		/* Filter band quality factor expressed as q-8 number, */
-		/* e.g. 3000/(2^8) */
-} __attribute__ ((packed));
-
-struct adsp_audio_eq_stream_config {
-	uint32_t  enable; /* Number of consequtive bands specified */
-	uint32_t  num_bands;
-	struct adsp_audio_eq_band  eq_bands[ADSP_AUDIO_MAX_EQ_BANDS];
-} __attribute__ ((packed));
-
-/* set device equalizer */
-struct adsp_set_dev_equalizer_command {
-	struct adsp_command_hdr hdr;
-	u32    device_id;
-	u32    enable;
-	u32    num_bands;
-	struct adsp_audio_eq_band eq_bands[ADSP_AUDIO_MAX_EQ_BANDS];
-} __attribute__ ((packed));
 
 /* Set device volume. */
 #define ADSP_AUDIO_IOCTL_CMD_SET_DEVICE_VOL		0x0107605c
@@ -475,12 +451,6 @@ struct adsp_set_mute_command {
 } __attribute__ ((packed));
 
 
-struct adsp_set_equalizer_command {
-	struct adsp_command_hdr hdr;
-	u32    enable;
-	u32    num_bands;
-	struct adsp_audio_eq_band eq_bands[ADSP_AUDIO_MAX_EQ_BANDS];
-} __attribute__ ((packed));
 
 /* ---- audio events ---- */
 
@@ -551,12 +521,8 @@ struct adsp_buffer_event {
 #define ADSP_AUDIO_DEVICE_ID_HEADSET_MIC	0x1081510
 #define ADSP_AUDIO_DEVICE_ID_SPKR_PHONE_MIC	0x1081512
 #define ADSP_AUDIO_DEVICE_ID_BT_SCO_MIC		0x1081518
-#define ADSP_AUDIO_DEVICE_ID_AUXPCM_TX		0x1081518
 #define ADSP_AUDIO_DEVICE_ID_TTY_HEADSET_MIC	0x108151b
 #define ADSP_AUDIO_DEVICE_ID_I2S_MIC		0x1089bf3
-
-#define ADSP_AUDIO_DEVICE_ID_SPKR_PHONE_DUAL_MIC	0x108f9c5
-#define ADSP_AUDIO_DEVICE_ID_HANDSET_DUAL_MIC		0x108f9c3
 
 /* Special loopback pseudo device to be paired with an RX device */
 /* with usage ADSP_AUDIO_DEVICE_USAGE_MIXED_PCM_LOOPBACK */
@@ -573,7 +539,6 @@ struct adsp_buffer_event {
 #define ADSP_AUDIO_DEVICE_ID_SPKR_PHONE_STEREO_W_MONO_HEADSET   0x108c895
 #define ADSP_AUDIO_DEVICE_ID_SPKR_PHONE_STEREO_W_STEREO_HEADSET	0x108c509
 #define ADSP_AUDIO_DEVICE_ID_BT_SCO_SPKR			0x1081519
-#define ADSP_AUDIO_DEVICE_ID_AUXPCM_RX				0x1081519
 #define ADSP_AUDIO_DEVICE_ID_TTY_HEADSET_SPKR			0x108151c
 #define ADSP_AUDIO_DEVICE_ID_I2S_SPKR				0x1089bf4
 #define ADSP_AUDIO_DEVICE_ID_NULL_SINK				0x108e512
@@ -596,9 +561,5 @@ struct adsp_buffer_event {
 #define ADSP_AUDIO_DEVICE_CONTEXT_MIXED_RECORD		0x10
 #define ADSP_AUDIO_DEVICE_CONTEXT_RECORD		0x20
 #define ADSP_AUDIO_DEVICE_CONTEXT_PCM_LOOPBACK		0x40
-
-/* ADSP audio driver return codes */
-#define ADSP_AUDIO_STATUS_SUCCESS               0
-#define ADSP_AUDIO_STATUS_EUNSUPPORTED          20
 
 #endif

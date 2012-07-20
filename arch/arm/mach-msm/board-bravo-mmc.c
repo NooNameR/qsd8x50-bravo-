@@ -27,6 +27,7 @@
 #include <asm/io.h>
 #include <asm/mach-types.h>
 #include <asm/mach/mmc.h>
+//#include <asm/mach/mmc.h> Future implement
 
 #include <mach/vreg.h>
 
@@ -36,65 +37,66 @@
 
 #undef BRAVO_DEBUG_MMC
 
+static void config_gpio_table(uint32_t *table, int len)
+{
+		int n, rc;
+		for (n = 0; n < len; n++) {
+				rc = gpio_tlmm_config(table[n], GPIO_CFG_ENABLE);
+				if (rc) {
+						pr_err("%s: gpio_tlmm_config(%#x)=%d\n",
+								__func__, table[n], rc);
+						break;
+				}
+		}
+}
+
 static bool opt_disable_sdcard;
 static int __init bravo_disablesdcard_setup(char *str)
 {
-	opt_disable_sdcard = (bool) simple_strtol(str, NULL, 0);
+	opt_disable_sdcard = (bool)simple_strtol(str, NULL, 0);
 	return 1;
 }
 
 __setup("board_bravo.disable_sdcard=", bravo_disablesdcard_setup);
 
-static struct msm_gpio sdcard_on_gpio_table[] = {
-	{GPIO_CFG(62, 1, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_8MA),
-	 "sdcard_on_clk"},
-	{GPIO_CFG(63, 1, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP, GPIO_CFG_8MA),
-	 "sdcard_on_cmd"},
-	{GPIO_CFG(64, 1, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP, GPIO_CFG_4MA),
-	 "sdcard_on_dat_3"},
-	{GPIO_CFG(65, 1, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP, GPIO_CFG_4MA),
-	 "sdcard_on_dat_2"},
-	{GPIO_CFG(66, 1, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP, GPIO_CFG_4MA),
-	 "sdcard_on_dat_1"},
-	{GPIO_CFG(67, 1, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP, GPIO_CFG_4MA),
-	 "sdcard_on_dat_0"},
+static uint32_t sdcard_on_gpio_table[] = {
+	PCOM_GPIO_CFG(62, 1, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_8MA), /* CLK */
+	PCOM_GPIO_CFG(63, 1, GPIO_OUTPUT, GPIO_PULL_UP, GPIO_8MA), /* CMD */
+	PCOM_GPIO_CFG(64, 1, GPIO_OUTPUT, GPIO_PULL_UP, GPIO_4MA), /* DAT3 */
+	PCOM_GPIO_CFG(65, 1, GPIO_OUTPUT, GPIO_PULL_UP, GPIO_4MA), /* DAT2 */
+	PCOM_GPIO_CFG(66, 1, GPIO_OUTPUT, GPIO_PULL_UP, GPIO_4MA), /* DAT1 */
+	PCOM_GPIO_CFG(67, 1, GPIO_OUTPUT, GPIO_PULL_UP, GPIO_4MA), /* DAT0 */
 };
 
-static struct msm_gpio sdcard_off_gpio_table[] = {
-	{GPIO_CFG(62, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_4MA),
-	 "sdcard_off_clk"},
-	{GPIO_CFG(63, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_4MA),
-	 "sdcard_off_cmd"},
-	{GPIO_CFG(64, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_4MA),
-	 "sdcard_off_dat_3"},
-	{GPIO_CFG(65, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_4MA),
-	 "sdcard_off_dat_2"},
-	{GPIO_CFG(66, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_4MA),
-	 "sdcard_off_dat_1"},
-	{GPIO_CFG(67, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_4MA),
-	 "sdcard_off_dat_0"},
+static uint32_t sdcard_off_gpio_table[] = {
+	PCOM_GPIO_CFG(62, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* CLK */
+	PCOM_GPIO_CFG(63, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* CMD */
+	PCOM_GPIO_CFG(64, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* DAT3 */
+	PCOM_GPIO_CFG(65, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* DAT2 */
+	PCOM_GPIO_CFG(66, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* DAT1 */
+	PCOM_GPIO_CFG(67, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* DAT0 */
 };
 
-static struct vreg *sdslot_vreg;
-static uint32_t sdslot_vdd = 0xffffffff;
-static uint32_t sdslot_vreg_enabled;
+static struct vreg	*sdslot_vreg;
+static uint32_t		sdslot_vdd = 0xffffffff;
+static uint32_t		sdslot_vreg_enabled;
 
 static struct {
 	int mask;
 	int level;
 } mmc_vdd_table[] = {
-	{
-	MMC_VDD_165_195, 1800}, {
-	MMC_VDD_20_21, 2050}, {
-	MMC_VDD_21_22, 2150}, {
-	MMC_VDD_22_23, 2250}, {
-	MMC_VDD_23_24, 2350}, {
-	MMC_VDD_24_25, 2450}, {
-	MMC_VDD_25_26, 2550}, {
-	MMC_VDD_26_27, 2650}, {
-	MMC_VDD_27_28, 2750}, {
-	MMC_VDD_28_29, 2850}, {
-MMC_VDD_29_30, 2950},};
+	{ MMC_VDD_165_195,	1800 },
+	{ MMC_VDD_20_21,	2050 },
+	{ MMC_VDD_21_22,	2150 },
+	{ MMC_VDD_22_23,	2250 },
+	{ MMC_VDD_23_24,	2350 },
+	{ MMC_VDD_24_25,	2450 },
+	{ MMC_VDD_25_26,	2550 },
+	{ MMC_VDD_26_27,	2650 },
+	{ MMC_VDD_27_28,	2750 },
+	{ MMC_VDD_28_29,	2850 },
+	{ MMC_VDD_29_30,	2900 },
+};
 
 static uint32_t bravo_sdslot_switchvdd(struct device *dev, unsigned int vdd)
 {
@@ -107,13 +109,8 @@ static uint32_t bravo_sdslot_switchvdd(struct device *dev, unsigned int vdd)
 	sdslot_vdd = vdd;
 
 	if (vdd == 0) {
-		ret = msm_gpios_request_enable(sdcard_off_gpio_table,
-					       ARRAY_SIZE
-					       (sdcard_off_gpio_table));
-		if (ret)
-			printk(KERN_ERR
-			       "%s: Failed to turn off GPIOs for device %s\n",
-			       __func__, dev->init_name);
+		config_gpio_table(sdcard_off_gpio_table,
+				  ARRAY_SIZE(sdcard_off_gpio_table));
 		vreg_disable(sdslot_vreg);
 		sdslot_vreg_enabled = 0;
 		return 0;
@@ -123,14 +120,8 @@ static uint32_t bravo_sdslot_switchvdd(struct device *dev, unsigned int vdd)
 		ret = vreg_enable(sdslot_vreg);
 		if (ret)
 			pr_err("%s: Error enabling vreg (%d)\n", __func__, ret);
-		ret = msm_gpios_request_enable(sdcard_on_gpio_table,
-					       ARRAY_SIZE
-					       (sdcard_on_gpio_table));
-		if (ret)
-			printk(KERN_ERR
-			       "%s: Failed to turn on GPIOs for device %s\n",
-			       __func__, dev->init_name);
-
+		config_gpio_table(sdcard_on_gpio_table,
+				  ARRAY_SIZE(sdcard_on_gpio_table));
 		sdslot_vreg_enabled = 1;
 	}
 
@@ -147,8 +138,7 @@ static uint32_t bravo_sdslot_switchvdd(struct device *dev, unsigned int vdd)
 	return 0;
 }
 
-static uint32_t bravo_cdma_sdslot_switchvdd(struct device *dev,
-					    unsigned int vdd)
+static uint32_t bravo_cdma_sdslot_switchvdd(struct device *dev, unsigned int vdd)
 {
 	if (!vdd == !sdslot_vdd)
 		return 0;
@@ -161,15 +151,15 @@ static uint32_t bravo_cdma_sdslot_switchvdd(struct device *dev,
 
 	if (vdd) {
 		gpio_set_value(BRAVO_CDMA_SD_2V85_EN, 1);
-		msm_gpios_request_enable(sdcard_on_gpio_table,
-					 ARRAY_SIZE(sdcard_on_gpio_table));
+		config_gpio_table(sdcard_on_gpio_table,
+				  ARRAY_SIZE(sdcard_on_gpio_table));
 	} else {
-		msm_gpios_request_enable(sdcard_off_gpio_table,
-					 ARRAY_SIZE(sdcard_off_gpio_table));
+		config_gpio_table(sdcard_off_gpio_table,
+				  ARRAY_SIZE(sdcard_off_gpio_table));
 		gpio_set_value(BRAVO_CDMA_SD_2V85_EN, 0);
 	}
 
-	sdslot_vreg_enabled = ! !vdd;
+	sdslot_vreg_enabled = !!vdd;
 
 	return 0;
 }
@@ -186,71 +176,70 @@ static unsigned int bravo_sdslot_status(struct device *dev)
 				 MMC_VDD_27_28 | MMC_VDD_28_29 | \
 				 MMC_VDD_29_30)
 
-int bravo_microp_sdslot_status_register(void (*cb) (int, void *), void *);
+int bravo_microp_sdslot_status_register(void (*cb)(int, void *), void *);
 unsigned int bravo_microp_sdslot_status(struct device *);
 
 static struct mmc_platform_data bravo_sdslot_data = {
-	.ocr_mask = BRAVO_MMC_VDD,
-	.status = bravo_microp_sdslot_status,
-	.register_status_notify = bravo_microp_sdslot_status_register,
-	.translate_vdd = bravo_sdslot_switchvdd,
+	.ocr_mask		= BRAVO_MMC_VDD,
+	.status			= bravo_microp_sdslot_status,
+	.register_status_notify	= bravo_microp_sdslot_status_register,
+	.translate_vdd		= bravo_sdslot_switchvdd,
 };
 
-static struct msm_gpio wifi_on_gpio_table[] = {
-	{GPIO_CFG(51, 1, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP, GPIO_CFG_4MA),
-	 "wifi_on_dat3"},
-	{GPIO_CFG(52, 1, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP, GPIO_CFG_4MA),
-	 "wifi_on_dat2"},
-	{GPIO_CFG(53, 1, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP, GPIO_CFG_4MA),
-	 "wifi_on_dat1"},
-	{GPIO_CFG(54, 1, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP, GPIO_CFG_4MA),
-	 "wifi_on_dat0"},
-	{GPIO_CFG(55, 1, GPIO_CFG_OUTPUT, GPIO_CFG_PULL_UP, GPIO_CFG_8MA),
-	 "wifi_on_cmd"},
-	{GPIO_CFG(56, 1, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_8MA),
-	 "wifi_on_clk"},
-	{GPIO_CFG(152, 0, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_4MA),
-	 "wifi_on_irq"},
+static uint32_t wifi_on_gpio_table[] = {
+	PCOM_GPIO_CFG(51, 1, GPIO_OUTPUT, GPIO_PULL_UP, GPIO_4MA), /* DAT3 */
+	PCOM_GPIO_CFG(52, 1, GPIO_OUTPUT, GPIO_PULL_UP, GPIO_4MA), /* DAT2 */
+	PCOM_GPIO_CFG(53, 1, GPIO_OUTPUT, GPIO_PULL_UP, GPIO_4MA), /* DAT1 */
+	PCOM_GPIO_CFG(54, 1, GPIO_OUTPUT, GPIO_PULL_UP, GPIO_4MA), /* DAT0 */
+	PCOM_GPIO_CFG(55, 1, GPIO_OUTPUT, GPIO_PULL_UP, GPIO_8MA), /* CMD */
+	PCOM_GPIO_CFG(56, 1, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_8MA), /* CLK */
+	PCOM_GPIO_CFG(152, 0, GPIO_INPUT, GPIO_NO_PULL, GPIO_4MA),  /* WLAN IRQ */
 };
 
-static struct msm_gpio wifi_off_gpio_table[] = {
-	{GPIO_CFG(51, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_4MA),
-	 "wifi_off_dat3"},
-	{GPIO_CFG(52, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_4MA),
-	 "wifi_off_dat2"},
-	{GPIO_CFG(53, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_4MA),
-	 "wifi_off_dat1"},
-	{GPIO_CFG(54, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_4MA),
-	 "wifi_off_dat0"},
-	{GPIO_CFG(55, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_4MA),
-	 "wifi_off_cmd"},
-	{GPIO_CFG(56, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_4MA),
-	 "wifi_off_clk"},
-	{GPIO_CFG(152, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_4MA),
-	 "wifi_off_irq"},
+static uint32_t wifi_off_gpio_table[] = {
+	PCOM_GPIO_CFG(51, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* DAT3 */
+	PCOM_GPIO_CFG(52, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* DAT2 */
+	PCOM_GPIO_CFG(53, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* DAT1 */
+	PCOM_GPIO_CFG(54, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* DAT0 */
+	PCOM_GPIO_CFG(55, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* CMD */
+	PCOM_GPIO_CFG(56, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA), /* CLK */
+	PCOM_GPIO_CFG(152, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_4MA),  /* WLAN IRQ */
 };
+
+/*static void config_gpio_table(uint32_t *table, int len)
+{
+		int n, rc;
+		for (n = 0; n < len; n++) {
+				rc = gpio_tlmm_config(table[n], GPIO_CFG_ENABLE);
+				if (rc) {
+						pr_err("%s: gpio_tlmm_config(%#x)=%d\n",
+								__func__, table[n], rc);
+						break;
+				}
+		}
+}*/
 
 /* BCM4329 returns wrong sdio_vsn(1) when we read cccr,
  * we use predefined value (sdio_vsn=2) here to initial sdio driver well
  */
 static struct embedded_sdio_data bravo_wifi_emb_data = {
-	.cccr = {
-		 .sdio_vsn = 2,
-		 .multi_block = 1,
-		 .low_speed = 0,
-		 .wide_bus = 0,
-		 .high_power = 1,
-		 .high_speed = 1,
-		 },
+	.cccr	= {
+		.sdio_vsn	= 2,
+		.multi_block	= 1,
+		.low_speed	= 0,
+		.wide_bus	= 0,
+		.high_power	= 1,
+		.high_speed	= 1,
+	},
 };
 
-static int bravo_wifi_cd = 0;	/* WIFI virtual 'card detect' status */
-static void (*wifi_status_cb) (int card_present, void *dev_id);
+static int bravo_wifi_cd = 0; /* WIFI virtual 'card detect' status */
+static void (*wifi_status_cb)(int card_present, void *dev_id);
 static void *wifi_status_cb_devid;
 
-static int
-bravo_wifi_status_register(void (*callback) (int card_present, void *dev_id),
-			   void *dev_id)
+static int bravo_wifi_status_register(
+			void (*callback)(int card_present, void *dev_id),
+			void *dev_id)
 {
 	if (wifi_status_cb)
 		return -EAGAIN;
@@ -265,11 +254,11 @@ static unsigned int bravo_wifi_status(struct device *dev)
 }
 
 static struct mmc_platform_data bravo_wifi_data = {
-	.ocr_mask = MMC_VDD_20_21,
-	.built_in = 1,
-	.status = bravo_wifi_status,
-	.register_status_notify = bravo_wifi_status_register,
-	.embedded_sdio = &bravo_wifi_emb_data,
+	.ocr_mask		= MMC_VDD_28_29,
+//	.built_in		= 1,
+	.status			= bravo_wifi_status,
+	.register_status_notify	= bravo_wifi_status_register,
+	.embedded_sdio		= &bravo_wifi_emb_data,
 };
 
 int bravo_wifi_set_carddetect(int val)
@@ -290,16 +279,16 @@ int bravo_wifi_power(int on)
 	printk("%s: %d\n", __func__, on);
 
 	if (on) {
-		msm_gpios_request_enable(wifi_on_gpio_table,
-					 ARRAY_SIZE(wifi_on_gpio_table));
+		config_gpio_table(wifi_on_gpio_table,
+				  ARRAY_SIZE(wifi_on_gpio_table));
 		mdelay(50);
 	} else {
-		msm_gpios_request_enable(wifi_off_gpio_table,
-					 ARRAY_SIZE(wifi_off_gpio_table));
+		config_gpio_table(wifi_off_gpio_table,
+				  ARRAY_SIZE(wifi_off_gpio_table));
 	}
 
 	mdelay(100);
-	gpio_set_value(BRAVO_GPIO_WIFI_SHUTDOWN_N, on);	/* WIFI_SHUTDOWN */
+	gpio_set_value(BRAVO_GPIO_WIFI_SHUTDOWN_N, on); /* WIFI_SHUTDOWN */
 	mdelay(200);
 
 	bravo_wifi_power_state = on;
@@ -322,12 +311,11 @@ int __init bravo_init_mmc(unsigned int sys_rev, unsigned debug_uart)
 	printk("%s()+\n", __func__);
 
 	/* initial WIFI_SHUTDOWN# */
-	id = GPIO_CFG(BRAVO_GPIO_WIFI_SHUTDOWN_N, 0, GPIO_CFG_OUTPUT,
-		      GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-	    msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX, &id, 0);
+	id = PCOM_GPIO_CFG(BRAVO_GPIO_WIFI_SHUTDOWN_N, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA),
+	msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX, &id, 0);
 
 	msm_add_sdcc(1, &bravo_wifi_data);
-
+	
 	if (debug_uart) {
 		pr_info("%s: sdcard disabled due to debug uart\n", __func__);
 		goto done;
@@ -344,7 +332,7 @@ int __init bravo_init_mmc(unsigned int sys_rev, unsigned debug_uart)
 		int rc = gpio_request(BRAVO_CDMA_SD_2V85_EN, "sdslot_en");
 		if (rc < 0) {
 			pr_err("%s: gpio_request(%d) failed: %d\n", __func__,
-			       BRAVO_CDMA_SD_2V85_EN, rc);
+				BRAVO_CDMA_SD_2V85_EN, rc);
 			return rc;
 		}
 		bravo_sdslot_data.translate_vdd = bravo_cdma_sdslot_switchvdd;
@@ -355,17 +343,17 @@ int __init bravo_init_mmc(unsigned int sys_rev, unsigned debug_uart)
 			return PTR_ERR(sdslot_vreg);
 	}
 
-//      if (system_rev > 0)
-	bravo_sdslot_data.status = bravo_sdslot_status;
-	msm_add_sdcc(2, &bravo_sdslot_data);
-//      else {
-//              bravo_sdslot_data.status = bravo_sdslot_status;
-//              bravo_sdslot_data.register_status_notify = NULL;
-//              set_irq_wake(MSM_GPIO_CFG_TO_INT(BRAVO_GPIO_SDMC_CD_N), 1);
-//              msm_add_sdcc(2, &bravo_sdslot_data,
-//                           MSM_GPIO_CFG_TO_INT(BRAVO_GPIO_SDMC_CD_N),
-//                           IORESOURCE_IRQ_LOWEDGE | IORESOURCE_IRQ_HIGHEDGE);
-//      }
+//	if (system_rev > 0)
+		bravo_sdslot_data.status = bravo_sdslot_status;
+		msm_add_sdcc(2, &bravo_sdslot_data);
+//	else {
+//		bravo_sdslot_data.status = bravo_sdslot_status;
+//		bravo_sdslot_data.register_status_notify = NULL;
+//		set_irq_wake(MSM_GPIO_TO_INT(BRAVO_GPIO_SDMC_CD_N), 1);
+//		msm_add_sdcc(2, &bravo_sdslot_data,
+//			     MSM_GPIO_TO_INT(BRAVO_GPIO_SDMC_CD_N),
+//			     IORESOURCE_IRQ_LOWEDGE | IORESOURCE_IRQ_HIGHEDGE);
+//	}
 
 done:
 	printk("%s()-\n", __func__);
@@ -376,11 +364,11 @@ done:
 
 static int bravommc_dbg_wifi_reset_set(void *data, u64 val)
 {
-	bravo_wifi_reset((int)val);
+	bravo_wifi_reset((int) val);
 	return 0;
 }
 
-static int bravommc_dbg_wifi_reset_get(void *data, u64 * val)
+static int bravommc_dbg_wifi_reset_get(void *data, u64 *val)
 {
 	*val = bravo_wifi_reset_state;
 	return 0;
@@ -388,11 +376,11 @@ static int bravommc_dbg_wifi_reset_get(void *data, u64 * val)
 
 static int bravommc_dbg_wifi_cd_set(void *data, u64 val)
 {
-	bravo_wifi_set_carddetect((int)val);
+	bravo_wifi_set_carddetect((int) val);
 	return 0;
 }
 
-static int bravommc_dbg_wifi_cd_get(void *data, u64 * val)
+static int bravommc_dbg_wifi_cd_get(void *data, u64 *val)
 {
 	*val = bravo_wifi_cd;
 	return 0;
@@ -400,11 +388,11 @@ static int bravommc_dbg_wifi_cd_get(void *data, u64 * val)
 
 static int bravommc_dbg_wifi_pwr_set(void *data, u64 val)
 {
-	bravo_wifi_power((int)val);
+	bravo_wifi_power((int) val);
 	return 0;
 }
 
-static int bravommc_dbg_wifi_pwr_get(void *data, u64 * val)
+static int bravommc_dbg_wifi_pwr_get(void *data, u64 *val)
 {
 	*val = bravo_wifi_power_state;
 	return 0;
@@ -412,11 +400,11 @@ static int bravommc_dbg_wifi_pwr_get(void *data, u64 * val)
 
 static int bravommc_dbg_sd_pwr_set(void *data, u64 val)
 {
-	bravo_sdslot_switchvdd(NULL, (unsigned int)val);
+	bravo_sdslot_switchvdd(NULL, (unsigned int) val);
 	return 0;
 }
 
-static int bravommc_dbg_sd_pwr_get(void *data, u64 * val)
+static int bravommc_dbg_sd_pwr_get(void *data, u64 *val)
 {
 	*val = sdslot_vdd;
 	return 0;
@@ -427,7 +415,7 @@ static int bravommc_dbg_sd_cd_set(void *data, u64 val)
 	return -ENOSYS;
 }
 
-static int bravommc_dbg_sd_cd_get(void *data, u64 * val)
+static int bravommc_dbg_sd_cd_get(void *data, u64 *val)
 {
 	*val = bravo_sdslot_data.status(NULL);
 	return 0;

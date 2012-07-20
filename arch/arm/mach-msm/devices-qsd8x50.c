@@ -1006,7 +1006,7 @@ void __init msm_camera_register_device(void *res, uint32_t num,
 
 	msm_register_device(&msm_camera_device, data);
 }
-/*
+
 static struct resource kgsl_3d0_resources[] = {
 	{
 		.name  = KGSL_3D0_REG_MEMORY,
@@ -1045,7 +1045,7 @@ struct platform_device msm_kgsl_3d0 = {
 		.platform_data = &kgsl_3d0_pdata,
 	},
 };
-*/
+
 
 static struct resource gpio_resources[] = {
 	{

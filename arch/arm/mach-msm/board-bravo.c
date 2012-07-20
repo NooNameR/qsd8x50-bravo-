@@ -71,6 +71,50 @@
 
 #define SMEM_SPINLOCK_I2C	"S:6"
 
+/* Kernel 3 stuff by shaky */
+
+#define GPIO_ENABLE	0
+#define GPIO_DISABLE	1
+
+#define GPIO_INPUT	0
+#define GPIO_OUTPUT	1
+
+#define GPIO_NO_PULL	0
+#define GPIO_PULL_DOWN	1
+#define GPIO_KEEPER	2
+#define GPIO_PULL_UP	3
+
+#define GPIO_2MA	0
+#define GPIO_4MA	1
+#define GPIO_6MA	2
+#define GPIO_8MA	3
+#define GPIO_10MA	4
+#define GPIO_12MA	5
+#define GPIO_14MA	6
+#define GPIO_16MA	7
+
+#define PCOM_GPIO_CFG(gpio, func, dir, pull, drvstr) \
+		((((gpio) & 0x3FF) << 4)	| \
+		((func) & 0xf)			| \
+		(((dir) & 0x1) << 14)		| \
+		(((pull) & 0x3) << 15)		| \
+		(((drvstr) & 0xF) << 17))
+		
+static void config_gpio_table(uint32_t *table, int len)
+{
+	int n, rc;
+	for (n = 0; n < len; n++) {
+		rc = gpio_tlmm_config(table[n], GPIO_CFG_ENABLE);
+		if (rc) {
+			printk(KERN_ERR "%s: gpio_tlmm_config(%#x)=%d\n",
+				__func__, table[n], rc);
+			break;
+		}
+	}
+}		
+
+/* End of Kernel 3 stuff */
+
 void (*msm_hw_reset_hook)(void);
 
 static uint debug_uart;
@@ -223,56 +267,6 @@ static struct android_usb_platform_data android_usb_pdata = {
 	.num_functions = ARRAY_SIZE(usb_functions_all),
 	.functions = usb_functions_all,
 };
-
-/* start kgsl */
-
-static struct resource kgsl_3d0_resources[] = {
-	{
-		.name  = KGSL_3D0_REG_MEMORY,
-		.start = 0xA0000000,
-		.end = 0xA001ffff,
-		.flags = IORESOURCE_MEM,
-	},
-	{
-		.name = KGSL_3D0_IRQ,
-		.start = INT_GRAPHICS,
-		.end = INT_GRAPHICS,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-static struct kgsl_device_platform_data kgsl_3d0_pdata = {
-	.pwrlevel = {
-		{
-			.gpu_freq = 0,
-			.bus_freq = 128000000,
-		},
-	},
-	.init_level = 0,
-	.num_levels = 1,
-	.set_grp_async = NULL,
-	.idle_timeout = HZ/5,
-	.clk_map = KGSL_CLK_GRP | KGSL_CLK_IMEM,
-};
-
-struct platform_device msm_kgsl_3d0 = {
-	.name = "kgsl-3d0",
-	.id = 0,
-	.num_resources = ARRAY_SIZE(kgsl_3d0_resources),
-	.resource = kgsl_3d0_resources,
-	.dev = {
-		.platform_data = &kgsl_3d0_pdata,
-	},
-};
-/* end kgsl */
-
-/* start footswitch regulator */
-struct platform_device *msm_footswitch_devices[] = {
-	FS_PCOM(FS_GFX3D,  "fs_gfx3d"),
-};
-
-unsigned msm_num_footswitch_devices = ARRAY_SIZE(msm_footswitch_devices);
-/* end footswitch regulator */
 
 static struct resource ram_console_resources[] = {
 	{
@@ -844,7 +838,7 @@ static int msm_bma_gpio_setup(struct device *dev)
 {
 	int rc;
 
-	rc = msm_gpios_request_enable(bma_spi_gpio_config_data,
+	rc = msm_gpios_enable(bma_spi_gpio_config_data,
 		ARRAY_SIZE(bma_spi_gpio_config_data));
 
 	return rc;
@@ -969,7 +963,7 @@ static int msm_qsd_spi_gpio_config(void)
 {
 	int rc;
 
-	rc = msm_gpios_request_enable(qsd_spi_gpio_config_data,
+	rc = msm_gpios_enable(qsd_spi_gpio_config_data,
 		ARRAY_SIZE(qsd_spi_gpio_config_data));
 	if (rc)
 		return rc;
@@ -1016,20 +1010,20 @@ static void __init bravo_init(void)
 	bravo_board_serialno_setup(board_serialno());
 
 	msm_clock_init(&qsd8x50_clock_init_data);
+	acpuclk_init(&acpuclk_8x50_soc_data);
 
 	qsd8x50_init_gpiomux(qsd8x50_gpiomux_cfgs);
 
         /* TODO: CDMA version */
-	acpuclk_init(&acpuclk_8x50_soc_data);
 
-        msm_gpios_request_enable(misc_gpio_table, ARRAY_SIZE(misc_gpio_table));
+        msm_gpios_enable(misc_gpio_table, ARRAY_SIZE(misc_gpio_table));
 
         if (is_cdma_version(system_rev)) {
             //bcm_bt_lpm_pdata.gpio_wake = BRAVO_CDMA_GPIO_BT_WAKE;
             //bravo_flashlight_data.torch = BRAVO_CDMA_GPIO_FLASHLIGHT_TORCH;
-            msm_gpios_request_enable(bt_gpio_table_rev_CX, ARRAY_SIZE(bt_gpio_table_rev_CX));
+            msm_gpios_enable(bt_gpio_table_rev_CX, ARRAY_SIZE(bt_gpio_table_rev_CX));
 	} else {
-            msm_gpios_request_enable(bt_gpio_table, ARRAY_SIZE(bt_gpio_table));
+            msm_gpios_enable(bt_gpio_table, ARRAY_SIZE(bt_gpio_table));
 	}
 
 	gpio_request(BRAVO_GPIO_TP_LS_EN, "tp_ls_en");
@@ -1047,9 +1041,6 @@ static void __init bravo_init(void)
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
-	platform_add_devices(msm_footswitch_devices,
-			msm_num_footswitch_devices);
-
         msm_device_i2c_init();
 	msm_qsd_spi_init();
 	i2c_register_board_info(0, base_i2c_devices,
@@ -1066,8 +1057,8 @@ static void __init bravo_init(void)
 	if (ret != 0)
 		pr_crit("%s: Unable to initialize MMC\n", __func__);
 
-	//msm_pm_set_platform_data(msm_pm_data, ARRAY_SIZE(msm_pm_data));
-	//BUG_ON(msm_pm_boot_init(&msm_pm_boot_pdata));
+	msm_pm_set_platform_data(msm_pm_data, ARRAY_SIZE(msm_pm_data));
+	BUG_ON(msm_pm_boot_init(&msm_pm_boot_pdata));
 	//msm_pm_register_irqs();
 
         bravo_headset_init();
