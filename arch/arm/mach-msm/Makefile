@@ -1,4 +1,6 @@
 obj-y += io.o dma.o memory.o
+obj-$(CONFIG_ARCH_MSM_SCORPION) += arch-init-scorpion.o
+obj-$(CONFIG_ARCH_MSM_ARM11) += acpuclock-arm11.o idle.o
 ifndef CONFIG_ARM_ARCH_TIMER
 obj-y += timer.o
 endif
@@ -33,7 +35,7 @@ obj-$(CONFIG_ARCH_MSM_SCORPION) += msm_fault_handlers.o
 endif
 
 ifndef CONFIG_ARCH_MSM8X60
-obj-y += irq.o
+#obj-y += irq.o
 endif
 
 obj-$(CONFIG_MSM_VIC) += irq-vic.o
@@ -341,7 +343,7 @@ obj-$(CONFIG_MSM_RTB) += msm_rtb.o
 obj-$(CONFIG_MSM_CACHE_ERP) += cache_erp.o
 
 obj-$(CONFIG_MACH_BRAVO) += clock-pll.o board-qsd8x50.o board-bravo.o board-bravo-panel.o #board-bravo-wifi.o
-obj-$(CONFIG_MACH_BRAVO) += board-bravo-microp.o board-bravo-mmc.o
+obj-$(CONFIG_MACH_BRAVO) += board-bravo-microp.o board-bravo-mmc.o board-bravo-keypad.o
 obj-$(CONFIG_MACH_BRAVO) += htc_wifi_nvs.o htc_awb_cal.o
 obj-$(CONFIG_MACH_BRAVO) += board-bravo-tpa2018d1.o
 obj-$(CONFIG_MACH_BRAVO) += board-bravo-smb329.o
