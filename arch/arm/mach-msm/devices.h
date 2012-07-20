@@ -295,6 +295,10 @@ extern struct platform_device msm9615_rpm_stat_device;
 extern struct platform_device msm9615_rpm_log_device;
 
 extern struct platform_device apq8064_rpm_device;
+
+extern struct platform_device msm_device_spi;
+extern struct platform_device msm_device_mdp;
+
 extern struct platform_device apq8064_rpm_stat_device;
 extern struct platform_device apq8064_rpm_log_device;
 

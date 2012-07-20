@@ -62,6 +62,102 @@ static struct resource resources_uart2[] = {
 	},
 };
 
+#if defined(CONFIG_ARCH_QSD8X50)
+static struct resource resources_spi[] = {
+	{
+		.name   = "spi_base",
+		.start  = MSM_SPI_PHYS,
+		.end    = MSM_SPI_PHYS + MSM_SPI_SIZE - 1,
+		.flags  = IORESOURCE_MEM,
+	},
+	{
+		.name   = "spi_irq_in",
+		.start  = INT_SPI_INPUT,
+		.end    = INT_SPI_INPUT,
+		.flags  = IORESOURCE_IRQ,
+	},
+	{
+		.name   = "spi_irq_out",
+		.start  = INT_SPI_OUTPUT,
+		.end    = INT_SPI_OUTPUT,
+		.flags  = IORESOURCE_IRQ,
+	},
+	{
+		.name   = "spi_irq_err",
+		.start  = INT_SPI_ERROR,
+		.end    = INT_SPI_ERROR,
+		.flags  = IORESOURCE_IRQ,
+	},
+#if defined(CONFIG_SPI_QSD)
+	{
+		.name   = "spi_clk",
+		.start  = 17,
+		.end    = 1,
+		.flags  = IORESOURCE_IRQ,
+	},
+	{
+		.name   = "spi_mosi",
+		.start  = 18,
+		.end    = 1,
+		.flags  = IORESOURCE_IRQ,
+	},
+	{
+		.name   = "spi_miso",
+		.start  = 19,
+		.end    = 1,
+		.flags  = IORESOURCE_IRQ,
+	},
+	{
+		.name   = "spi_cs0",
+		.start  = 20,
+		.end    = 1,
+		.flags  = IORESOURCE_IRQ,
+	},
+	{
+		.name   = "spi_pwr",
+		.start  = 21,
+		.end    = 0,
+		.flags  = IORESOURCE_IRQ,
+	},
+	{
+		.name   = "spi_irq_cs0",
+		.start  = 22,
+		.end    = 0,
+		.flags  = IORESOURCE_IRQ,
+	},
+#endif
+};
+#endif
+
+static struct resource resources_mdp[] = {
+	{
+		.start	= MSM_MDP_PHYS,
+		.end	= MSM_MDP_PHYS + MSM_MDP_SIZE - 1,
+		.name	= "mdp",
+		.flags	= IORESOURCE_MEM
+	},
+	{
+		.start	= INT_MDP,
+		.end	= INT_MDP,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device msm_device_spi = {
+         .name           = "msm_spi",
+         .id             = 0,
+         .num_resources  = ARRAY_SIZE(resources_spi),
+         .resource       = resources_spi,
+};
+
+struct platform_device msm_device_mdp = {
+	.name = "msm_mdp",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(resources_mdp),
+	.resource = resources_mdp,
+};
+ 
+
 static struct resource resources_uart3[] = {
 	{
 		.start	= INT_UART3,

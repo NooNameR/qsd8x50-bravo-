@@ -91,4 +91,11 @@
 #define MSM_AD5_PHYS          0xAC000000
 #define MSM_AD5_SIZE          (SZ_1M*13)
 
+#define MSM_SPI_PHYS          0xA1200000
+#define MSM_SPI_SIZE          SZ_4K
+
+
+#define MSM_MDP_PHYS          0xAA200000
+#define MSM_MDP_SIZE          0x000F0000
+
 #endif
