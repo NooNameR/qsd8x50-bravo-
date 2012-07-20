@@ -33,11 +33,14 @@
 #include <linux/uaccess.h>
 #include <linux/kfifo.h>
 #include <linux/wakelock.h>
+#include <mach/board_htc.h>
 #include <mach/msm_smd.h>
+#include <mach/restart.h>
 #include <mach/msm_iomap.h>
 #include <mach/system.h>
 #include <mach/subsystem_notif.h>
 #include <mach/socinfo.h>
+#include <mach/board.h>
 
 #include "smd_private.h"
 #include "proc_comm.h"
