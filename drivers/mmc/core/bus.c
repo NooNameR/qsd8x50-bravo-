@@ -263,9 +263,9 @@ int mmc_add_card(struct mmc_card *card)
 {
 	int ret;
 	const char *type;
+	const char *uhs_bus_speed_mode = "";
 
 	dev_set_name(&card->dev, "%s:%04x", mmc_hostname(card->host), card->rca);
-	card->removed = 0;
 
 	switch (card->type) {
 	case MMC_TYPE_MMC:
@@ -293,6 +293,28 @@ int mmc_add_card(struct mmc_card *card)
 		break;
 	}
 
+	if (mmc_sd_card_uhs(card)) {
+		switch (card->sd_bus_speed) {
+		case UHS_SDR104_BUS_SPEED:
+			uhs_bus_speed_mode = "SDR104 ";
+			break;
+		case UHS_SDR50_BUS_SPEED:
+			uhs_bus_speed_mode = "SDR50 ";
+			break;
+		case UHS_DDR50_BUS_SPEED:
+			uhs_bus_speed_mode = "DDR50 ";
+			break;
+		case UHS_SDR25_BUS_SPEED:
+			uhs_bus_speed_mode = "SDR25 ";
+			break;
+		case UHS_SDR12_BUS_SPEED:
+			uhs_bus_speed_mode = "SDR12 ";
+			break;
+		default:
+			uhs_bus_speed_mode = "";
+			break;
+		}
+	}
 	if (mmc_host_is_spi(card->host)) {
 		printk(KERN_INFO "%s: new %s%s%s card on SPI\n",
 			mmc_hostname(card->host),
@@ -300,11 +322,13 @@ int mmc_add_card(struct mmc_card *card)
 			mmc_card_ddr_mode(card) ? "DDR " : "",
 			type);
 	} else {
-		printk(KERN_INFO "%s: new %s%s%s card at address %04x\n",
+		pr_info("%s: new %s%s%s%s%s card at address %04x\n",
 			mmc_hostname(card->host),
 			mmc_sd_card_uhs(card) ? "ultra high speed " :
 			(mmc_card_highspeed(card) ? "high speed " : ""),
+			(mmc_card_hs200(card) ? "HS200 " : ""),
 			mmc_card_ddr_mode(card) ? "DDR " : "",
+			uhs_bus_speed_mode,
 			type, card->rca);
 	}
 
@@ -327,8 +351,6 @@ int mmc_add_card(struct mmc_card *card)
  */
 void mmc_remove_card(struct mmc_card *card)
 {
-	if (mmc_card_sd(card))
-		card->removed = 1;
 #ifdef CONFIG_DEBUG_FS
 	mmc_remove_card_debugfs(card);
 #endif
