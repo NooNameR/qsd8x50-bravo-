@@ -651,7 +651,8 @@ static int mmc_sd_init_uhs_card(struct mmc_card *card)
 	/* SPI mode doesn't define CMD19 */
 	if (!mmc_host_is_spi(card->host) && card->host->ops->execute_tuning) {
 		mmc_host_clk_hold(card->host);
-//		err = card->host->ops->execute_tuning(card->host);
+		err = card->host->ops->execute_tuning(card->host,
+						      MMC_SEND_TUNING_BLOCK);
 		mmc_host_clk_release(card->host);
 	}
 
@@ -1089,18 +1090,11 @@ static void mmc_sd_detect(struct mmc_host *host)
 	mmc_release_host(host);
 
 	if (err) {
-	/*
-	 * let card removal task run in worker thread to avoid sd-qd being blocked.
-	 */
-		remove_card(host);
-#if 0
 		mmc_sd_remove(host);
 
 		mmc_claim_host(host);
 		mmc_detach_bus(host);
-		mmc_power_off(host);
 		mmc_release_host(host);
-#endif
 	}
 }
 
@@ -1132,7 +1126,6 @@ static int mmc_sd_resume(struct mmc_host *host)
 	int err;
 #ifdef CONFIG_MMC_PARANOID_SD_INIT
 	int retries;
-	int delayTime;
 #endif
 
 	BUG_ON(!host);
@@ -1141,18 +1134,17 @@ static int mmc_sd_resume(struct mmc_host *host)
 	mmc_claim_host(host);
 #ifdef CONFIG_MMC_PARANOID_SD_INIT
 	retries = 5;
-	delayTime = 5;
 	while (retries) {
 		err = mmc_sd_init_card(host, host->ocr, host->card);
 
 		if (err) {
-			printk(KERN_ERR "%s: Re-init card rc = %d (retries = %d, delay time = %d ms)\n",
-			       mmc_hostname(host), err, retries, delayTime);
-			mmc_power_off(host);
-			mdelay(delayTime);
-			mmc_power_up(host);
+			printk(KERN_ERR "%s: Re-init card rc = %d (retries = %d)\n",
+			       mmc_hostname(host), err, retries);
 			retries--;
-			delayTime *= 2;
+			mmc_power_off(host);
+			usleep_range(5000, 5500);
+			mmc_power_up(host);
+			mmc_select_voltage(host, host->ocr);
 			continue;
 		}
 		break;
@@ -1289,6 +1281,10 @@ int mmc_attach_sd(struct mmc_host *host)
 		err = mmc_sd_init_card(host, host->ocr, NULL);
 		if (err) {
 			retries--;
+			mmc_power_off(host);
+			usleep_range(5000, 5500);
+			mmc_power_up(host);
+			mmc_select_voltage(host, host->ocr);
 			continue;
 		}
 		break;
