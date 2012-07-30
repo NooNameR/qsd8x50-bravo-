@@ -703,7 +703,6 @@ static void __mmc_set_clock(struct mmc_host *host, unsigned int hz)
 	host->ios.clock = hz;
 	mmc_set_ios(host);
 }
-EXPORT_SYMBOL(mmc_set_clock);
 
 void mmc_set_clock(struct mmc_host *host, unsigned int hz)
 {
@@ -1042,7 +1041,6 @@ void mmc_set_timing(struct mmc_host *host, unsigned int timing)
 	mmc_set_ios(host);
 	mmc_host_clk_release(host);
 }
-EXPORT_SYMBOL(mmc_set_timing);
 
 /*
  * Select appropriate driver type for host.
@@ -1207,11 +1205,6 @@ int mmc_resume_bus(struct mmc_host *host)
 		host->bus_ops->detect(host);
 
 	mmc_bus_put(host);
-	if (ret) {
-		spin_lock_irqsave(&host->lock, flags);
-		host->bus_resume_flags |= MMC_BUSRESUME_NEEDS_RESUME;
-		spin_unlock_irqrestore(&host->lock, flags);
-	}
 	pr_info("%s: Deferred resume %s\n", mmc_hostname(host),
 		(ret == 0 ? "completed" : "Fail"));
 	return ret;
@@ -1668,10 +1661,8 @@ EXPORT_SYMBOL(mmc_can_trim);
 
 int mmc_can_secure_erase_trim(struct mmc_card *card)
 {
-	/*
 	if (card->ext_csd.sec_feature_support & EXT_CSD_SEC_ER_EN)
 		return 1;
-	*/
 	return 0;
 }
 EXPORT_SYMBOL(mmc_can_secure_erase_trim);

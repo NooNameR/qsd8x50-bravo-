@@ -406,7 +406,6 @@ out:
 
 	return err;
 }
-EXPORT_SYMBOL(mmc_sd_switch);
 
 static int sd_select_driver_type(struct mmc_card *card, u8 *status)
 {
@@ -652,8 +651,7 @@ static int mmc_sd_init_uhs_card(struct mmc_card *card)
 	/* SPI mode doesn't define CMD19 */
 	if (!mmc_host_is_spi(card->host) && card->host->ops->execute_tuning) {
 		mmc_host_clk_hold(card->host);
-		err = card->host->ops->execute_tuning(card->host,
-						      MMC_SEND_TUNING_BLOCK);
+//		err = card->host->ops->execute_tuning(card->host);
 		mmc_host_clk_release(card->host);
 	}
 
@@ -1006,6 +1004,7 @@ static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 		 * Set bus speed.
 		 */
 		mmc_set_clock(host, mmc_sd_get_max_clock(card));
+
 		/*
 		 * Switch to wider bus (if supported).
 		 */
@@ -1154,11 +1153,6 @@ static int mmc_sd_resume(struct mmc_host *host)
 			mmc_power_up(host);
 			retries--;
 			delayTime *= 2;
-			if (host->ops->get_cd && host->ops->get_cd(host) == 0) {
-				printk(KERN_ERR "%s(%s): find no card (%d). Stop trying\n",
-				__func__, mmc_hostname(host), err);
-				break;
-			}
 			continue;
 		}
 		break;

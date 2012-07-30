@@ -209,17 +209,13 @@
 
 #define NR_SG		128
 
-#ifdef CONFIG_WIMAX
-#define MSM_MMC_WIMAX_IDLE_TIMEOUT	1000 /* msecs */
-#endif
-
 #define MSM_MMC_IDLE_TIMEOUT	250 /* msecs */
 #define MSM_EMMC_IDLE_TIMEOUT	20 /* msecs */
 /*
  * Set the request timeout to 10secs to allow
  * bad cards/controller to respond.
  */
-#define MSM_MMC_REQ_TIMEOUT	10000 /* msecs */
+#define MSM_MMC_REQ_TIMEOUT	5000 /* msecs */
 #define MSM_MMC_DISABLE_TIMEOUT        200 /* msecs */
 
 /*
@@ -284,10 +280,9 @@ struct msmsdcc_dma_data {
 };
 
 struct msmsdcc_pio_data {
-	struct sg_mapping_iter		sg_miter;
-	char				bounce_buf[4];
-	/* valid bytes in bounce_buf */
-	int				bounce_buf_len;
+	struct scatterlist	*sg;
+	unsigned int		sg_len;
+	unsigned int		sg_off;
 };
 
 struct msmsdcc_curr_req {
@@ -390,8 +385,6 @@ struct msmsdcc_host {
 	unsigned int	dummy_52_sent;
 
 	unsigned int	sdio_irq_disabled;
-	bool		is_resumed;
-
 	struct wake_lock	sdio_wlock;
 	struct wake_lock	sdio_suspend_wlock;
 	unsigned int    sdcc_suspending;
@@ -409,30 +402,21 @@ struct msmsdcc_host {
 
 	unsigned int	irq_status[5];
 	unsigned int	irq_counter;
-
-#ifdef CONFIG_WIMAX
-    bool        is_runtime_resumed;
-#endif
 };
 
 int msmsdcc_set_pwrsave(struct mmc_host *mmc, int pwrsave);
-int msmsdcc_sdio_al_lpm(struct mmc_host *mmc, bool enable);
+int msmsdcc_sdio_al_lpm(struct mmc_host *mmc, bool enable, int wlock_timeout);
 
 #ifdef CONFIG_MSM_SDIO_AL
 
 static inline int msmsdcc_lpm_enable(struct mmc_host *mmc)
 {
-	return msmsdcc_sdio_al_lpm(mmc, true);
+	return msmsdcc_sdio_al_lpm(mmc, true, 1);
 }
 
 static inline int msmsdcc_lpm_disable(struct mmc_host *mmc)
 {
-	struct msmsdcc_host *host = mmc_priv(mmc);
-	int ret;
-
-	ret = msmsdcc_sdio_al_lpm(mmc, false);
-	wake_unlock(&host->sdio_wlock);
-	return ret;
+	return msmsdcc_sdio_al_lpm(mmc, false, 1);
 }
 #endif
 
@@ -440,18 +424,17 @@ static inline int msmsdcc_lpm_disable(struct mmc_host *mmc)
 extern int mmc_wimax_get_status(void);
 extern void mmc_wimax_enable_host_wakeup(int on);
 extern int mmc_wimax_get_irq_log(void);
-
-extern void mmc_wimax_set_FWWakeupHostEvent(int on);
-extern int mmc_wimax_get_FWWakeupHostEvent(void);
-
-extern int mmc_wimax_get_disable_irq_config(void);
 #endif
 
-
+#ifdef CONFIG_MACH_PRIMODD
 //HTC_WIFI_START
-#ifdef CONFIG_TIWLAN_POWER_CONTROL_FUNC
+int primodd_wifi_power(int on); 
+//HTC_WIFI_END
+#endif
+#ifdef CONFIG_MACH_RUBY
+extern int ruby_wifi_power(int on);
+#endif
+#if defined CONFIG_MACH_BLISS || defined CONFIG_MACH_BLISSC || defined CONFIG_MACH_PRIMODS
 extern int ti_wifi_power(int on);
 #endif
-//HTC_WIFI_END
-
 #endif
