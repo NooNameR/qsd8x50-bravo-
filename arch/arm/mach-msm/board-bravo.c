@@ -84,7 +84,7 @@
 #define GPIO_KEEPER	2
 #define GPIO_PULL_UP	3
 
-#define GPIO_2MA	0static unsigned int engineerid;
+#define GPIO_2MA	0
 #define GPIO_4MA	1
 #define GPIO_6MA	2
 #define GPIO_8MA	3
@@ -126,6 +126,7 @@ extern void msm_init_pmic_vibrator(void);
 extern void __init bravo_audio_init(void);
 
 extern int microp_headset_has_mic(void);
+static unsigned int engineerid;
 
 static int bravo_phy_init_seq[] = {
 	0x0C, 0x31,
