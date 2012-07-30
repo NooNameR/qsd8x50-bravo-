@@ -7,7 +7,7 @@ In case anyone other than me reads this. There are a lot of things to do. Adding
 all neccessary drivers from older kernels and adapting the interfaces. This is
 just a list of things I noticed or is not important to fix now.
 
-Current kmsg output: http://pastebin.com/1xkmphJj
+Current kmsg output: http://pastebin.com/NGKcusfE
 
 If you stumple over this and are interested to help then feel free to contact me.
 
@@ -34,7 +34,6 @@ I won't guarantee that I continue to work on this.
    Traced it down to i2c_lock_adapter in i2c_transfer over print_constraints _regulator_get_voltage so far
    Either rt_mutex_lock does not work or adapter is already locked. Latter does not seem the case.
  * Error about "dev_init_debugfs: Error-Bad Function Input" seems to be unimportant (in the dummy case)
- * gpio_tlmm_config(0x0002c390, GPIO_CFG_ENABLE) <?> failed: -5
    pin 57 func 0 dir 1 pull 1 drvstr 1
    caused by bt_gpio_table (BRAVO_GPIO_BT_WAKE)
  * Enabling pm causes the system to hang
