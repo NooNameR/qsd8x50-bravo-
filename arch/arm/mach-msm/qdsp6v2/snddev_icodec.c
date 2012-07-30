@@ -9,11 +9,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
- *
  */
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -22,22 +17,18 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/wakelock.h>
-#ifdef CONFIG_LGE_AUDIO
- /*Nothing to do*/
-#else
 #include <linux/pmic8058-othc.h>
-#endif
 #include <linux/slab.h>
 #include <linux/regulator/consumer.h>
 #include <asm/uaccess.h>
 #include <mach/qdsp6v2/audio_dev_ctl.h>
-#include <mach/qdsp6v2/apr_audio.h>
+#include <mach/qdsp6v2/audio_acdb.h>
 #include <mach/vreg.h>
 #include <mach/pmic.h>
 #include <mach/debug_mm.h>
-#include <mach/qdsp6v2/q6afe.h>
+#include <sound/q6afe.h>
+#include <sound/apr_audio.h>
 #include "snddev_icodec.h"
-#include "audio_acdb.h"
 
 #define SNDDEV_ICODEC_PCM_SZ 32 /* 16 bit / sample stereo mode */
 #define SNDDEV_ICODEC_MUL_FACTOR 3 /* Multi by 8 Shift by 3  */

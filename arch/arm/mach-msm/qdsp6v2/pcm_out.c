@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2009 Google, Inc.
- * Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2010-2012, Code Aurora Forum. All rights reserved.
  * Author: Brian Swetland <swetland@google.com>
  *
  * This software is licensed under the terms of the GNU General Public
@@ -23,12 +23,12 @@
 #include <linux/wait.h>
 #include <linux/msm_audio.h>
 #include <linux/slab.h>
-#include <asm/atomic.h>
-#include <mach/debug_mm.h>
-#include <mach/qdsp6v2/apr_audio.h>
-#include <mach/qdsp6v2/q6asm.h>
-#include <mach/qdsp6v2/audio_dev_ctl.h>
 #include <linux/wakelock.h>
+#include <asm/atomic.h>
+#include <sound/q6asm.h>
+#include <sound/apr_audio.h>
+#include <mach/debug_mm.h>
+#include <mach/qdsp6v2/audio_dev_ctl.h>
 
 #define MAX_BUF 2
 #define BUFSZ (4800)
@@ -65,6 +65,9 @@ void pcm_out_cb(uint32_t opcode, uint32_t token,
 	case ASM_DATA_EVENT_WRITE_DONE:
 		atomic_inc(&pcm->out_count);
 		wake_up(&pcm->write_wait);
+		break;
+	case RESET_EVENTS:
+		reset_device();
 		break;
 	default:
 		break;
