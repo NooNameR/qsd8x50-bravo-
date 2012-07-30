@@ -530,7 +530,6 @@ static inline void msm_hsusb_set_vbus_state(int online) {}
 #endif
 
 char *board_serialno(void);
-
 void msm_snddev_init(void);
 void msm_snddev_init_timpani(void);
 void msm_snddev_poweramp_on(void);

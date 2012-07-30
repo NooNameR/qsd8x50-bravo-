@@ -197,43 +197,43 @@ EXPORT_SYMBOL(board_serialno);
  */
 int __init parse_tag_smi(const struct tag *tags)
 {
-  int smi_sz = 0, find = 0;
-  struct tag *t = (struct tag *)tags;
+	int smi_sz = 0, find = 0;
+	struct tag *t = (struct tag *)tags;
 
-  for (; t->hdr.size; t = tag_next(t)) {
-    if (t->hdr.tag == ATAG_SMI) {
-      printk(KERN_DEBUG "find the smi tag\n");
-      find = 1;
-      break;
-    }
-  }
-  if (!find)
-    return -1;
+	for (; t->hdr.size; t = tag_next(t)) {
+		if (t->hdr.tag == ATAG_SMI) {
+			printk(KERN_DEBUG "[K] find the smi tag\n");
+			find = 1;
+			break;
+		}
+	}
+	if (!find)
+		return -1;
 
-  printk(KERN_DEBUG "parse_tag_smi: smi size = %d\n", t->u.mem.size);
-  smi_sz = t->u.mem.size;
-  return smi_sz;
+	printk(KERN_DEBUG "[K] parse_tag_smi: smi size = %d\n", t->u.mem.size);
+	smi_sz = t->u.mem.size;
+	return smi_sz;
 }
 __tagtable(ATAG_SMI, parse_tag_smi);
 
 #define ATAG_HWID 0x4d534D72
 int __init parse_tag_hwid(const struct tag *tags)
 {
-  int hwid = 0, find = 0;
-  struct tag *t = (struct tag *)tags;
+	int hwid = 0, find = 0;
+	struct tag *t = (struct tag *)tags;
 
-  for (; t->hdr.size; t = tag_next(t)) {
-    if (t->hdr.tag == ATAG_HWID) {
-      printk(KERN_DEBUG "find the hwid tag\n");
-      find = 1;
-      break;
-    }
-  }
+	for (; t->hdr.size; t = tag_next(t)) {
+		if (t->hdr.tag == ATAG_HWID) {
+			printk(KERN_DEBUG "[K] find the hwid tag\n");
+			find = 1;
+			break;
+		}
+	}
 
-  if (find)
-    hwid = t->u.revision.rev;
-  printk(KERN_DEBUG "parse_tag_hwid: hwid = 0x%x\n", hwid);
-  return hwid;
+	if (find)
+		hwid = t->u.revision.rev;
+	printk(KERN_DEBUG "[K] parse_tag_hwid: hwid = 0x%x\n", hwid);
+	return hwid;
 }
 __tagtable(ATAG_HWID, parse_tag_hwid);
 
@@ -245,7 +245,7 @@ int __init parse_tag_skuid(const struct tag *tags)
 
 	for (; t->hdr.size; t = tag_next(t)) {
 		if (t->hdr.tag == ATAG_SKUID) {
-			printk(KERN_DEBUG "find the skuid tag\n");
+			printk(KERN_DEBUG "[K] find the skuid tag\n");
 			find = 1;
 			break;
 		}
@@ -253,7 +253,7 @@ int __init parse_tag_skuid(const struct tag *tags)
 
 	if (find)
 		skuid = t->u.revision.rev;
-	printk(KERN_DEBUG "parse_tag_skuid: hwid = 0x%x\n", skuid);
+	printk(KERN_DEBUG "[K] parse_tag_skuid: hwid = 0x%x\n", skuid);
 	return skuid;
 }
 __tagtable(ATAG_SKUID, parse_tag_skuid);
@@ -272,30 +272,32 @@ int __init tag_panel_parsing(const struct tag *tags)
 __tagtable(ATAG_HERO_PANEL_TYPE, tag_panel_parsing);
 
 #define ATAG_ENGINEERID 0x4d534D75
-unsigned engineer_id;
-//EXPORT_SYMBOL(engineerid);
+static unsigned engineerid;
+EXPORT_SYMBOL(engineerid);
 int __init parse_tag_engineerid(const struct tag *tags)
 {
-	int engineerid = 0, find = 0;
+	int find = 0;
 	struct tag *t = (struct tag *)tags;
 
 	for (; t->hdr.size; t = tag_next(t)) {
 		if (t->hdr.tag == ATAG_ENGINEERID) {
-			printk(KERN_DEBUG "find the engineer tag\n");
+			printk(KERN_DEBUG "[K] find the engineer tag\n");
 			find = 1;
 			break;
 		}
 	}
 
-	if (find) {
-		engineer_id = t->u.revision.rev;
+	if (find)
 		engineerid = t->u.revision.rev;
-	}
-	printk(KERN_DEBUG "parse_tag_engineerid: 0x%x\n", engineerid);
+	printk(KERN_DEBUG "[K] parse_tag_engineerid: hwid = 0x%x\n", engineerid);
 	return engineerid;
 }
 __tagtable(ATAG_ENGINEERID, parse_tag_engineerid);
 
+unsigned get_engineerid(void)
+{
+	return engineerid;
+}
 #define ATAG_MFG_GPIO_TABLE 0x59504551
 int __init parse_tag_mfg_gpio_table(const struct tag *tags)
 {

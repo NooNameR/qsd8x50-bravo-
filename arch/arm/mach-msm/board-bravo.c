@@ -84,7 +84,7 @@
 #define GPIO_KEEPER	2
 #define GPIO_PULL_UP	3
 
-#define GPIO_2MA	0
+#define GPIO_2MA	0static unsigned int engineerid;
 #define GPIO_4MA	1
 #define GPIO_6MA	2
 #define GPIO_8MA	3
