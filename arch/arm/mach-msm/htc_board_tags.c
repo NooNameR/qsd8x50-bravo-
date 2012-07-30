@@ -66,6 +66,109 @@ int board_mfg_mode(void)
 
 EXPORT_SYMBOL(board_mfg_mode);
 
+
+static int build_flag;
+
+static int __init board_bootloader_setup(char *str)
+{
+	char temp[strlen(str) + 1];
+	char *p = NULL;
+	char *build = NULL;
+	char *args = temp;
+
+	printk(KERN_INFO "[K] %s: %s\n", __func__, str);
+
+	strcpy(temp, str);
+
+	/*parse the last parameter*/
+	while ((p = strsep(&args, ".")) != NULL) build = p;
+
+	/* Sometime hboot version would change from .X000 to .X001, .X002,...
+	 * So compare the first character to avoid unnecessary error.
+	 */
+	if (build) {
+		if (build[0] == '0') {
+			printk(KERN_INFO "[K] %s: SHIP BUILD\n", __func__);
+			build_flag = SHIP_BUILD;
+		} else if (build[0] == '2') {
+			printk(KERN_INFO "[K] %s: ENG BUILD\n", __func__);
+			build_flag = ENG_BUILD;
+		} else if (build[0] == '1') {
+			printk(KERN_INFO "[K] %s: MFG BUILD\n", __func__);
+			build_flag = MFG_BUILD;
+		} else {
+			printk(KERN_INFO "[K] %s: default ENG BUILD\n", __func__);
+			build_flag = ENG_BUILD;
+		}
+	}
+	return 1;
+}
+__setup("androidboot.bootloader=", board_bootloader_setup);
+
+int board_build_flag(void)
+{
+	return build_flag;
+}
+
+EXPORT_SYMBOL(board_build_flag);
+
+/* ISL29028 ID values */
+#define ATAG_PS_TYPE 0x4d534D77
+int ps_type;
+EXPORT_SYMBOL(ps_type);
+int __init tag_ps_parsing(const struct tag *tags)
+{
+	ps_type = tags->u.revision.rev;
+
+	printk(KERN_DEBUG "[K] %s: PS type = 0x%x\n", __func__,
+		ps_type);
+
+	return ps_type;
+}
+__tagtable(ATAG_PS_TYPE, tag_ps_parsing);
+
+static unsigned int radio_flag;
+int __init radio_flag_init(char *s)
+{
+	radio_flag = simple_strtoul(s, 0, 16);
+	return 1;
+}
+__setup("radioflag=", radio_flag_init);
+
+unsigned int get_radio_flag(void)
+{
+	return radio_flag;
+}
+
+static unsigned long kernel_flag;
+int __init kernel_flag_init(char *s)
+{
+	int ret;
+	ret = strict_strtoul(s, 16, &kernel_flag);
+	return 1;
+}
+__setup("kernelflag=", kernel_flag_init);
+
+unsigned long get_kernel_flag(void)
+{
+	return kernel_flag;
+}
+
+#define MID_LEN	(9)
+static char modelid[MID_LEN+1];
+int __init model_id_init(char *s)
+{
+	memset(modelid, 0, sizeof(modelid));
+	strncpy(modelid, s, MID_LEN);
+	return 1;
+}
+__setup("androidboot.mid=", model_id_init);
+
+char *get_model_id(void)
+{
+	return modelid;
+}
+
 static int __init board_serialno_setup(char *serialno)
 {
 	char *str;
@@ -170,6 +273,7 @@ __tagtable(ATAG_HERO_PANEL_TYPE, tag_panel_parsing);
 
 #define ATAG_ENGINEERID 0x4d534D75
 unsigned engineer_id;
+//EXPORT_SYMBOL(engineerid);
 int __init parse_tag_engineerid(const struct tag *tags)
 {
 	int engineerid = 0, find = 0;
@@ -240,7 +344,7 @@ int __init parse_tag_memsize(const struct tag *tags)
 
 	for (; t->hdr.size; t = tag_next(t)) {
 		if (t->hdr.tag == ATAG_MEMSIZE) {
-			printk(KERN_DEBUG "find the memsize tag\n");
+			printk(KERN_DEBUG "[K] find the memsize tag\n");
 			find = 1;
 			break;
 		}
@@ -250,8 +354,44 @@ int __init parse_tag_memsize(const struct tag *tags)
 		memory_size = t->u.revision.rev;
 		mem_size = t->u.revision.rev;
 	}
-	printk(KERN_DEBUG "parse_tag_memsize: %d\n", memory_size);
+	printk(KERN_DEBUG "[K] parse_tag_memsize: %d\n", memory_size);
 	return mem_size;
 }
 __tagtable(ATAG_MEMSIZE, parse_tag_memsize);
 
+#define ATAG_DDR_ID 0x54410030
+int __init parse_tag_ddr_id(const struct tag *tags)
+{
+	int ddr_id = -1, find = 0;
+	struct tag *t = (struct tag *)tags;
+
+	for (; t->hdr.size; t = tag_next(t)) {
+		if (t->hdr.tag == ATAG_DDR_ID) {
+			printk(KERN_DEBUG "[K] find the DDR-ID tag\n");
+			find = 1;
+			break;
+		}
+	}
+
+	if (find)
+		ddr_id = t->u.revision.rev;
+
+	printk(KERN_DEBUG "[K] parse_tag_ddr_id: %d\n", ddr_id);
+	return ddr_id;
+}
+__tagtable(ATAG_DDR_ID, parse_tag_ddr_id);
+static int usb_ats;
+int __init board_ats_init(char *s)
+{
+	usb_ats = simple_strtoul(s, 0, 10);
+	return 1;
+}
+__setup("ats=", board_ats_init);
+
+
+int board_get_usb_ats(void)
+{
+	return usb_ats;
+}
+
+EXPORT_SYMBOL(board_get_usb_ats);

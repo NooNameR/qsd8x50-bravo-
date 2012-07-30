@@ -39,7 +39,7 @@ typedef struct smd_channel smd_channel_t;
  * be the same.  In cases where a processor only supports
  * SMD, the entry will only exist in this enum.
  */
-enum {
+/*enum {
 	SMD_APPS = SMSM_APPS,
 	SMD_MODEM = SMSM_MODEM,
 	SMD_Q6 = SMSM_Q6,
@@ -72,6 +72,28 @@ enum {
 	SMD_WCNSS_RPM,
 	SMD_NUM_TYPE,
 	SMD_LOOPBACK_TYPE = 100,
+
+};*/
+
+enum {
+	SMD_APPS_MODEM = 0,
+	SMD_APPS_QDSP,
+	SMD_MODEM_QDSP,
+	SMD_APPS_DSPS,
+	SMD_MODEM_DSPS,
+	SMD_QDSP_DSPS,
+	SMD_APPS_WCNSS,
+	SMD_MODEM_WCNSS,
+	SMD_QDSP_WCNSS,
+	SMD_DSPS_WCNSS,
+	SMD_APPS_Q6FW,
+	SMD_MODEM_Q6FW,
+	SMD_QDSP_Q6FW,
+	SMD_DSPS_Q6FW,
+	SMD_WCNSS_Q6FW,
+	SMD_NUM_TYPE,
+	SMD_LOOPBACK_TYPE = 100,
+	NUM_SMD_SUBSYSTEMS,
 
 };
 

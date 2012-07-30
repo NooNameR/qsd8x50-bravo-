@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-2012, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -8,6 +8,11 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
  */
 
 #include <linux/kernel.h>
@@ -27,14 +32,13 @@
 #include <linux/sysfs.h>
 #include <linux/device.h>
 #include <linux/slab.h>
-#include <asm/mach-types.h>
 #include <mach/peripheral-loader.h>
 #include <mach/msm_smd.h>
 #include <mach/qdsp6v2/apr.h>
-#include <mach/qdsp6v2/apr_tal.h>
-#include <mach/qdsp6v2/dsp_debug.h>
 #include <mach/subsystem_notif.h>
 #include <mach/subsystem_restart.h>
+#include "apr_tal.h"
+#include "dsp_debug.h"
 
 struct apr_q6 q6;
 struct apr_client client[APR_DEST_MAX][APR_CLIENT_MAX];
@@ -192,7 +196,6 @@ static void apr_cb_func(void *buf, int len, void *priv)
 		if (svc == APR_SVC_AFE || svc == APR_SVC_ASM ||
 			svc == APR_SVC_VSM || svc == APR_SVC_VPM ||
 			svc == APR_SVC_ADM || svc == APR_SVC_ADSP_CORE ||
-			svc == APR_SVC_USM ||
 			svc == APR_SVC_TEST_CLIENT || svc == APR_SVC_ADSP_MVM ||
 			svc == APR_SVC_ADSP_CVS || svc == APR_SVC_ADSP_CVP)
 			clnt = APR_CLIENT_AUDIO;
@@ -255,9 +258,9 @@ struct apr_svc *apr_register(char *dest, char *svc_name, apr_fn svc_fn,
 	if (!dest || !svc_name || !svc_fn)
 		return NULL;
 
-	if (!strncmp(dest, "ADSP", 4))
+	if (!strcmp(dest, "ADSP"))
 		dest_id = APR_DEST_QDSP6;
-	else if (!strncmp(dest, "MODEM", 5)) {
+	else if (!strcmp(dest, "MODEM")) {
 		dest_id = APR_DEST_MODEM;
 	} else {
 		pr_err("APR: wrong destination\n");
@@ -286,23 +289,23 @@ struct apr_svc *apr_register(char *dest, char *svc_name, apr_fn svc_fn,
 		pr_info("%s: modem Up\n", __func__);
 	}
 
-	if (!strncmp(svc_name, "AFE", 3)) {
+	if (!strcmp(svc_name, "AFE")) {
 		client_id = APR_CLIENT_AUDIO;
 		svc_idx = 0;
 		svc_id = APR_SVC_AFE;
-	} else if (!strncmp(svc_name, "ASM", 3)) {
+	} else if (!strcmp(svc_name, "ASM")) {
 		client_id = APR_CLIENT_AUDIO;
 		svc_idx = 1;
 		svc_id = APR_SVC_ASM;
-	} else if (!strncmp(svc_name, "ADM", 3)) {
+	} else if (!strcmp(svc_name, "ADM")) {
 		client_id = APR_CLIENT_AUDIO;
 		svc_idx = 2;
 		svc_id = APR_SVC_ADM;
-	} else if (!strncmp(svc_name, "CORE", 4)) {
+	} else if (!strcmp(svc_name, "CORE")) {
 		client_id = APR_CLIENT_AUDIO;
 		svc_idx = 3;
 		svc_id = APR_SVC_ADSP_CORE;
-	} else if (!strncmp(svc_name, "TEST", 4)) {
+	} else if (!strcmp(svc_name, "TEST")) {
 		if (dest_id == APR_DEST_QDSP6) {
 			client_id = APR_CLIENT_AUDIO;
 			svc_idx = 4;
@@ -311,19 +314,19 @@ struct apr_svc *apr_register(char *dest, char *svc_name, apr_fn svc_fn,
 			svc_idx = 7;
 		}
 		svc_id = APR_SVC_TEST_CLIENT;
-	} else if (!strncmp(svc_name, "VSM", 3)) {
+	} else if (!strcmp(svc_name, "VSM")) {
 		client_id = APR_CLIENT_VOICE;
 		svc_idx = 0;
 		svc_id = APR_SVC_VSM;
-	} else if (!strncmp(svc_name, "VPM", 3)) {
+	} else if (!strcmp(svc_name, "VPM")) {
 		client_id = APR_CLIENT_VOICE;
 		svc_idx = 1;
 		svc_id = APR_SVC_VPM;
-	} else if (!strncmp(svc_name, "MVS", 3)) {
+	} else if (!strcmp(svc_name, "MVS")) {
 		client_id = APR_CLIENT_VOICE;
 		svc_idx = 2;
 		svc_id = APR_SVC_MVS;
-	} else if (!strncmp(svc_name, "MVM", 3)) {
+	} else if (!strcmp(svc_name, "MVM")) {
 		if (dest_id == APR_DEST_MODEM) {
 			client_id = APR_CLIENT_VOICE;
 			svc_idx = 3;
@@ -333,7 +336,7 @@ struct apr_svc *apr_register(char *dest, char *svc_name, apr_fn svc_fn,
 			svc_idx = 5;
 			svc_id = APR_SVC_ADSP_MVM;
 		}
-	} else if (!strncmp(svc_name, "CVS", 3)) {
+	} else if (!strcmp(svc_name, "CVS")) {
 		if (dest_id == APR_DEST_MODEM) {
 			client_id = APR_CLIENT_VOICE;
 			svc_idx = 4;
@@ -343,7 +346,7 @@ struct apr_svc *apr_register(char *dest, char *svc_name, apr_fn svc_fn,
 			svc_idx = 6;
 			svc_id = APR_SVC_ADSP_CVS;
 		}
-	} else if (!strncmp(svc_name, "CVP", 3)) {
+	} else if (!strcmp(svc_name, "CVP")) {
 		if (dest_id == APR_DEST_MODEM) {
 			client_id = APR_CLIENT_VOICE;
 			svc_idx = 5;
@@ -353,14 +356,10 @@ struct apr_svc *apr_register(char *dest, char *svc_name, apr_fn svc_fn,
 			svc_idx = 7;
 			svc_id = APR_SVC_ADSP_CVP;
 		}
-	} else if (!strncmp(svc_name, "SRD", 3)) {
+	} else if (!strcmp(svc_name, "SRD")) {
 		client_id = APR_CLIENT_VOICE;
 		svc_idx = 6;
 		svc_id = APR_SVC_SRD;
-	} else if (!strncmp(svc_name, "USM", 3)) {
-		client_id = APR_CLIENT_AUDIO;
-		svc_idx = 8;
-		svc_id = APR_SVC_USM;
 	} else {
 		pr_err("APR: Wrong svc name\n");
 		goto done;
@@ -374,11 +373,7 @@ struct apr_svc *apr_register(char *dest, char *svc_name, apr_fn svc_fn,
 		if (!q6.pil) {
 			pr_err("APR: Unable to load q6 image\n");
 			mutex_unlock(&q6.lock);
-			/* Return failure if not intended for simulator */
-			if (!machine_is_apq8064_sim()) {
-				pr_debug("APR: Not apq8064 sim\n");
-				return svc;
-			}
+			return svc;
 		}
 		q6.state = APR_Q6_LOADED;
 	}
@@ -410,11 +405,6 @@ struct apr_svc *apr_register(char *dest, char *svc_name, apr_fn svc_fn,
 	if (src_port != 0xFFFFFFFF) {
 		temp_port = ((src_port >> 8) * 8) + (src_port & 0xFF);
 		pr_debug("port = %d t_port = %d\n", src_port, temp_port);
-		if (temp_port >= APR_MAX_PORTS || temp_port < 0) {
-			pr_err("APR: temp_port out of bounds\n");
-			mutex_unlock(&svc->m_lock);
-			return NULL;
-		}
 		if (!svc->port_cnt && !svc->svc_cnt)
 			client[dest_id][client_id].svc_cnt++;
 		svc->port_cnt++;
@@ -445,6 +435,7 @@ static void apr_reset_deregister(struct work_struct *work)
 	pr_debug("%s:handle[%p]\n", __func__, handle);
 	apr_deregister(handle);
 	kfree(apr_reset);
+	msleep(5);
 }
 
 int apr_deregister(void *handle)
@@ -505,19 +496,12 @@ void apr_reset(void *handle)
 		return;
 	pr_debug("%s: handle[%p]\n", __func__, handle);
 
-	if (apr_reset_workqueue == NULL) {
-		pr_err("%s: apr_reset_workqueue is NULL\n", __func__);
-		return;
-	}
-
 	apr_reset_worker = kzalloc(sizeof(struct apr_reset_work),
-							GFP_ATOMIC);
-
-	if (apr_reset_worker == NULL) {
+					GFP_ATOMIC);
+	if (apr_reset_worker == NULL || apr_reset_workqueue == NULL) {
 		pr_err("%s: mem failure\n", __func__);
 		return;
 	}
-
 	apr_reset_worker->handle = handle;
 	INIT_WORK(&apr_reset_worker->work, apr_reset_deregister);
 	queue_work(apr_reset_workqueue, &apr_reset_worker->work);
@@ -679,13 +663,16 @@ device_initcall(apr_init);
 
 static int __init apr_late_init(void)
 {
-	int ret = 0;
+	void *ret;
 	init_waitqueue_head(&dsp_wait);
 	init_waitqueue_head(&modem_wait);
 	atomic_set(&dsp_state, 1);
 	atomic_set(&modem_state, 1);
-	subsys_notif_register_notifier("modem", &mnb);
-	subsys_notif_register_notifier("lpass", &lnb);
-	return ret;
+	ret = subsys_notif_register_notifier("modem", &mnb);
+	pr_debug("subsys_register_notifier: ret1 = %p\n", ret);
+	ret = subsys_notif_register_notifier("lpass", &lnb);
+	pr_debug("subsys_register_notifier: ret2 = %p\n", ret);
+
+	return 0;
 }
 late_initcall(apr_late_init);

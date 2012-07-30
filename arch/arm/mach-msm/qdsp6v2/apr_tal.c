@@ -8,6 +8,11 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
  */
 
 #include <linux/kernel.h>
@@ -24,9 +29,10 @@
 #include <linux/debugfs.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
-#include <linux/clk.h>
 #include <mach/msm_smd.h>
-#include <mach/qdsp6v2/apr_tal.h>
+#include <linux/reboot.h>
+#include "apr_tal.h"
+#include "../clock-8x60.h"
 
 static char *svc_names[APR_DEST_MAX][APR_CLIENT_MAX] = {
 	{
@@ -167,6 +173,7 @@ struct apr_svc_ch_dev *apr_tal_open(uint32_t svc, uint32_t dest,
 		if (rc == 0) {
 			pr_err("apr_tal:open timeout\n");
 			mutex_unlock(&apr_svc_ch[dl][dest][svc].m_lock);
+			kernel_restart("QDSP_BOOT");
 			return NULL;
 		}
 		pr_debug("apr_tal:Wakeup done\n");
@@ -240,7 +247,6 @@ static int apr_smd_probe(struct platform_device *pdev)
 		wake_up(&apr_svc_ch[APR_DL_SMD][dest][clnt].dest);
 	} else
 		pr_err("apr_tal:Invalid Dest Id: %d\n", pdev->id);
-
 	return 0;
 }
 

@@ -207,7 +207,9 @@ enum {
 extern spinlock_t smem_lock;
 
 
-void smd_diag(void);
+int smd_diag(void);
+int smd_diag_ssr(char *reset_reason);
+int smd_smsm_erase_efs(void);
 
 struct interrupt_stat {
 	uint32_t smd_in_count;
