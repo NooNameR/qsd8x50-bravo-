@@ -233,7 +233,7 @@ static int
 mmc_send_cxd_data(struct mmc_card *card, struct mmc_host *host,
 		u32 opcode, void *buf, unsigned len)
 {
-	struct mmc_request mrq = {NULL};
+	struct mmc_request mrq = {0};
 	struct mmc_command cmd = {0};
 	struct mmc_data data = {0};
 	struct scatterlist sg;
@@ -408,7 +408,7 @@ int mmc_switch(struct mmc_card *card, u8 set, u8 index, u8 value,
 			break;
 		if (mmc_host_is_spi(card->host))
 			break;
-	} while (R1_CURRENT_STATE(status) == R1_STATE_PRG);
+	} while (R1_CURRENT_STATE(status) == 7);
 
 	if (mmc_host_is_spi(card->host)) {
 		if (status & R1_SPI_ILLEGAL_COMMAND)
@@ -451,11 +451,112 @@ int mmc_send_status(struct mmc_card *card, u32 *status)
 	return 0;
 }
 
+int mmc_set_block_length(struct mmc_card *card, u32 length)
+{
+	int err;
+	int retries = 3;
+	struct mmc_command cmd;
+	u32 status;
+	unsigned long delay = jiffies + HZ;
+
+	BUG_ON(!card);
+	BUG_ON(!card->host);
+
+	memset(&cmd, 0, sizeof(struct mmc_command));
+
+	cmd.opcode = MMC_SET_BLOCKLEN;
+	cmd.arg = length;
+	cmd.flags = MMC_RSP_SPI_R1 | MMC_RSP_R1 | MMC_CMD_AC;
+
+	err = mmc_wait_for_cmd(card->host, &cmd, MMC_CMD_RETRIES);
+	if (err)
+		return err;
+
+	do {
+		err = mmc_send_status(card, &status);
+
+		if (err) {
+			printk(KERN_ERR "%s: failed to get status (%d)\n", __func__, err);
+			mmc_delay(5);
+			retries--;
+			continue;
+		}
+
+		if (card->host->caps & MMC_CAP_WAIT_WHILE_BUSY)
+			break;
+		if (mmc_host_is_spi(card->host))
+			break;
+
+		if (time_after(jiffies, delay)) {
+			printk(KERN_ERR "failed to get card ready!!!\n");
+			break;
+		}
+	} while (retries && R1_CURRENT_STATE(status) == 7);
+
+	return 0;
+}
+
+int mmc_send_write_prot_type(struct mmc_card *card, void *buf, u32 address)
+{
+	struct mmc_request mrq;
+	struct mmc_command cmd;
+	struct mmc_data data;
+	struct scatterlist sg;
+	void *data_buf;
+	int len = 8;
+
+	/* dma onto stack is unsafe/nonportable, but callers to this
+	 * routine normally provide temporary on-stack buffers ...
+	 */
+	data_buf = kmalloc(len, GFP_KERNEL);
+	if (data_buf == NULL)
+		return -ENOMEM;
+
+	memset(&mrq, 0, sizeof(struct mmc_request));
+	memset(&cmd, 0, sizeof(struct mmc_command));
+	memset(&data, 0, sizeof(struct mmc_data));
+
+	mrq.cmd = &cmd;
+	mrq.data = &data;
+
+	//cmd.opcode = MMC_SEND_WRITE_PROT_TYPE;
+	cmd.arg = address;
+
+	/* NOTE HACK:  the MMC_RSP_SPI_R1 is always correct here, but we
+	 * rely on callers to never use this with "native" calls for reading
+	 * CSD or CID.  Native versions of those commands use the R2 type,
+	 * not R1 plus a data block.
+	 */
+	cmd.flags = MMC_RSP_SPI_R1 | MMC_RSP_R1 | MMC_CMD_ADTC;
+
+	data.blksz = len;
+	data.blocks = 1;
+	data.flags = MMC_DATA_READ;
+	data.sg = &sg;
+	data.sg_len = 1;
+
+	sg_init_one(&sg, data_buf, len);
+
+	mmc_set_data_timeout(&data, card);
+
+	mmc_wait_for_req(card->host, &mrq);
+
+	memcpy(buf, data_buf, len);
+	kfree(data_buf);
+
+	if (cmd.error)
+		return cmd.error;
+	if (data.error)
+		return data.error;
+
+	return 0;
+}
+
 static int
 mmc_send_bus_test(struct mmc_card *card, struct mmc_host *host, u8 opcode,
 		  u8 len)
 {
-	struct mmc_request mrq = {NULL};
+	struct mmc_request mrq = {0};
 	struct mmc_command cmd = {0};
 	struct mmc_data data = {0};
 	struct scatterlist sg;
@@ -550,35 +651,4 @@ int mmc_bus_test(struct mmc_card *card, u8 bus_width)
 	mmc_send_bus_test(card, card->host, MMC_BUS_TEST_W, width);
 	err = mmc_send_bus_test(card, card->host, MMC_BUS_TEST_R, width);
 	return err;
-}
-
-int mmc_send_hpi_cmd(struct mmc_card *card, u32 *status)
-{
-	struct mmc_command cmd = {0};
-	unsigned int opcode;
-	unsigned int flags;
-	int err;
-
-	opcode = card->ext_csd.hpi_cmd;
-	if (opcode == MMC_STOP_TRANSMISSION)
-		flags = MMC_RSP_R1 | MMC_CMD_AC;
-	else if (opcode == MMC_SEND_STATUS)
-		flags = MMC_RSP_R1 | MMC_CMD_AC;
-
-	cmd.opcode = opcode;
-	cmd.arg = card->rca << 16 | 1;
-	cmd.flags = flags;
-	cmd.cmd_timeout_ms = card->ext_csd.out_of_int_time;
-
-	err = mmc_wait_for_cmd(card->host, &cmd, 0);
-	if (err) {
-		pr_warn("%s: error %d interrupting operation. "
-			"HPI command response %#x\n", mmc_hostname(card->host),
-			err, cmd.resp[0]);
-		return err;
-	}
-	if (status)
-		*status = cmd.resp[0];
-
-	return 0;
 }
